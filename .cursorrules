@@ -1,0 +1,41 @@
+You are working on God Clause — an embeddable AI governance framework for TypeScript/Node.js.
+
+## Core Concept
+YAML trust contracts define rules. A three-valued policy engine evaluates them: permit, deny, or MODIFY (attach obligations like PII redaction). This is different from OPA's binary allow/deny.
+
+## Quick Reference
+- Entry point: `src/governance.ts` (GodClause class)
+- All types: `src/types.ts` (~200 types, single source of truth)
+- All exports: `src/index.ts` (if it's not here, it's not public)
+- Tests: `tests/{module}.test.ts`, vitest, 504 tests
+- Node >= 20, TypeScript strict, CommonJS, 4 deps (ajv, commander, uuid, yaml)
+
+## Architecture
+- `src/engine/` — Policy engine, evaluator, MCP router, compiled evaluator, rate limiting
+- `src/contracts/` — Parser, schema, registry, watcher, signed bundles
+- `src/audit/` — SHA-256 hash chain, Merkle seals, proof bundles, immutable sink
+- `src/middleware/` — HTTP, LangChain/Vercel AI hooks, streaming PII interceptor
+- `src/server/server.ts` — REST API (24 endpoints + SSE)
+- `src/attestation/` — IETF RATS RFC 9334, trust anchors (software/TPM/SGX stubs)
+- `src/sandbox/` — WASM + V8 isolate sandboxes
+- `src/crypto/` — DSSE signing, RFC 3161 timestamps
+- `src/compliance/` — TLA+ formal verification, 6 compliance frameworks
+- `examples/` — OpenAI/Claude/Gemini wrappers, MCP demo, 9 threat contracts
+
+## Rules
+1. ALL types go in `src/types.ts` — never define types inline
+2. ALL public exports go through `src/index.ts`
+3. NO new npm dependencies — use Node.js built-ins (crypto, vm, WebAssembly, fs)
+4. NO `new Function()` or `eval()` — use closure composition
+5. NO `any` in source files — TypeScript strict mode, zero type errors
+6. Audit sinks implement `AuditSink` interface from `src/audit/audit-log.ts`
+7. Trust contracts require: schema_version, metadata, data_governance, rules
+8. Run `npx tsc --noEmit && npx vitest run` to verify changes
+9. Run `npm run format` before committing
+
+## Common Patterns
+- PolicyDecision has three outcomes: "permit" | "deny" | "modify"
+- "modify" carries obligations: `{ type: "redact_pii", params: { replacement: "[REDACTED]" } }`
+- MCP Router is fail-closed: unmatched tools are denied by default
+- Contract YAML validated by AJV schema at `src/contracts/schema.ts`
+- Examples use simulated LLM calls (no real API keys needed)
