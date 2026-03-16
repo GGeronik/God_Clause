@@ -15,17 +15,39 @@
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
     "ai-governance",
     "trust-contracts",
     "policy-enforcement",
+    "policy-engine",
     "audit",
     "responsible-ai",
-    "guardrails"
+    "guardrails",
+    "ai-safety",
+    "llm",
+    "openai",
+    "anthropic",
+    "gemini",
+    "mcp",
+    "model-context-protocol",
+    "pii-redaction",
+    "compliance",
+    "eu-ai-act",
+    "zero-trust",
+    "yaml"
   ],
+  "author": "George Geronik <george@geronik.com>",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GGeronik/God_Clause.git"
+  },
+  "homepage": "https://github.com/GGeronik/God_Clause#readme",
+  "bugs": {
+    "url": "https://github.com/GGeronik/God_Clause/issues"
+  },
   "dependencies": {
     "ajv": "^8.17.0",
     "commander": "^13.1.0",
@@ -48,6 +70,10 @@
   },
   "files": [
     "dist/",
-    "schemas/"
+    "schemas/",
+    "examples/",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
   ]
 }

@@ -1,0 +1,24 @@
+# Source (dist/ is included via package.json "files")
+src/
+tests/
+dashboard/
+docs/
+charts/
+.github/
+.claude/
+
+# Config
+tsconfig.json
+vitest.config.ts
+eslint.config.mjs
+.prettierrc
+.editorconfig
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Dev files
+*.test.ts
+coverage/
+.DS_Store
+*.tgz
