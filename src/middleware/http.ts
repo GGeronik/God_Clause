@@ -27,10 +27,7 @@ export interface HttpMiddlewareOptions {
  * }));
  * ```
  */
-export function godClauseMiddleware(
-  gov: GodClause,
-  opts: HttpMiddlewareOptions,
-) {
+export function godClauseMiddleware(gov: GodClause, opts: HttpMiddlewareOptions) {
   const decisionKey = opts.decisionKey ?? "godClauseDecision";
 
   return async (req: any, res: any, next: (...args: any[]) => void) => {
@@ -46,23 +43,22 @@ export function godClauseMiddleware(
         } else {
           res.statusCode = 403;
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({
-            error: "Policy violation",
-            decision_id: decision.decision_id,
-            blocks: decision.blocks.map((b) => ({
-              rule_id: b.rule_id,
-              description: b.rule_description,
-            })),
-          }));
+          res.end(
+            JSON.stringify({
+              error: "Policy violation",
+              decision_id: decision.decision_id,
+              blocks: decision.blocks.map((b) => ({
+                rule_id: b.rule_id,
+                description: b.rule_description,
+              })),
+            }),
+          );
         }
         return;
       }
 
       if (decision.warnings.length > 0) {
-        res.setHeader(
-          "X-GodClause-Warnings",
-          decision.warnings.map((w) => w.rule_id).join(","),
-        );
+        res.setHeader("X-GodClause-Warnings", decision.warnings.map((w) => w.rule_id).join(","));
         if (opts.onWarn) opts.onWarn(res, decision);
       }
 

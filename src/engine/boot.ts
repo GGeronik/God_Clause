@@ -1,9 +1,4 @@
-import type {
-  TrustContract,
-  ModelBinding,
-  DegradationTier,
-  PreFlightResult,
-} from "../types";
+import type { TrustContract, ModelBinding, DegradationTier, PreFlightResult } from "../types";
 import { GodClause, GovernanceOptions } from "../governance";
 import { parseContract } from "../contracts/parser";
 import type { AuditSink } from "../audit/audit-log";
@@ -50,9 +45,7 @@ export class SecureBoot {
    * 5. Run pre-flight checks.
    * 6. Return both the instance and the pre-flight result.
    */
-  static async initialize(
-    opts: SecureBootOptions,
-  ): Promise<{ gov: GodClause; preflight: PreFlightResult }> {
+  static async initialize(opts: SecureBootOptions): Promise<{ gov: GodClause; preflight: PreFlightResult }> {
     // Step 1: Parse all contract YAML strings
     const parsed: TrustContract[] = [];
     const parseErrors: string[] = [];
@@ -61,9 +54,7 @@ export class SecureBoot {
       try {
         parsed.push(parseContract(source));
       } catch (err) {
-        parseErrors.push(
-          err instanceof Error ? err.message : String(err),
-        );
+        parseErrors.push(err instanceof Error ? err.message : String(err));
       }
     }
 
@@ -120,9 +111,7 @@ export class SecureBoot {
     checks.push({
       name: "contracts_loaded",
       passed: contractsLoaded,
-      detail: contractsLoaded
-        ? `${contracts.length} contract(s) loaded`
-        : "No contracts loaded",
+      detail: contractsLoaded ? `${contracts.length} contract(s) loaded` : "No contracts loaded",
     });
 
     // Check: audit_writable
@@ -130,9 +119,7 @@ export class SecureBoot {
     checks.push({
       name: "audit_writable",
       passed: auditWritable,
-      detail: auditWritable
-        ? "Memory audit sink available"
-        : "No audit sink available",
+      detail: auditWritable ? "Memory audit sink available" : "No audit sink available",
     });
 
     // Check: model_bindings
@@ -146,15 +133,11 @@ export class SecureBoot {
         }
       }
 
-      const allPresent = opts.modelBindings.every((mb) =>
-        contractBindings.has(mb.model_id),
-      );
+      const allPresent = opts.modelBindings.every((mb) => contractBindings.has(mb.model_id));
       checks.push({
         name: "model_bindings",
         passed: allPresent,
-        detail: allPresent
-          ? "All model bindings found in contracts"
-          : "Some model bindings missing from contracts",
+        detail: allPresent ? "All model bindings found in contracts" : "Some model bindings missing from contracts",
       });
     }
 

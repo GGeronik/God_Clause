@@ -53,11 +53,7 @@ export type { TenantOptions } from "./tenancy/tenant";
 // Middleware
 export { godClauseMiddleware } from "./middleware/http";
 export type { HttpMiddlewareOptions } from "./middleware/http";
-export {
-  createAIHook,
-  createLangChainCallbackHandler,
-  createVercelAIWrapper,
-} from "./middleware/ai-sdk";
+export { createAIHook, createLangChainCallbackHandler, createVercelAIWrapper } from "./middleware/ai-sdk";
 export type {
   AIInvocationHook,
   AIHookOptions,
@@ -85,7 +81,13 @@ export type { TimestampToken, TimestampRequestOptions } from "./crypto/timestamp
 
 // Compliance
 export { generateComplianceReport } from "./compliance/reporter";
-export type { ComplianceReport, ComplianceControl, ComplianceFramework, ControlStatus, ReportOptions } from "./compliance/reporter";
+export type {
+  ComplianceReport,
+  ComplianceControl,
+  ComplianceFramework,
+  ControlStatus,
+  ReportOptions,
+} from "./compliance/reporter";
 export { TLAPlusGenerator } from "./compliance/tlaplus-generator";
 
 // Notifications
@@ -111,7 +113,14 @@ export { SandboxedEvaluator } from "./sandbox/vm-sandbox";
 
 // Attestation
 export { AttestationService } from "./attestation/rats";
-export { SoftwareTrustAnchor, TPMTrustAnchor, SGXTrustAnchor, FirecrackerTrustAnchor, createTrustAnchor, NotImplementedError } from "./attestation/trust-anchor";
+export {
+  SoftwareTrustAnchor,
+  TPMTrustAnchor,
+  SGXTrustAnchor,
+  FirecrackerTrustAnchor,
+  createTrustAnchor,
+  NotImplementedError,
+} from "./attestation/trust-anchor";
 export type { TrustAnchor } from "./attestation/trust-anchor";
 
 // Proof Bundle

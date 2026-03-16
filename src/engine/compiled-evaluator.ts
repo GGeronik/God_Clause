@@ -153,11 +153,7 @@ export class CompiledPolicyEvaluator {
   /**
    * Benchmark compiled evaluation.
    */
-  benchmark(
-    compiled: CompiledContract,
-    ctx: PolicyContext,
-    iterations: number = 1000,
-  ): CompilationStats {
+  benchmark(compiled: CompiledContract, ctx: PolicyContext, iterations: number = 1000): CompilationStats {
     // Benchmark compiled
     const compiledStart = performance.now();
     for (let i = 0; i < iterations; i++) {
@@ -206,9 +202,7 @@ export class CompiledPolicyEvaluator {
     const actions = Array.isArray(rule.action) ? rule.action : [rule.action];
     const actionSet = new Set(actions);
     const isWildcard = actionSet.has("*");
-    const actionMatcher = isWildcard
-      ? () => true
-      : (action: string) => actionSet.has(action);
+    const actionMatcher = isWildcard ? () => true : (action: string) => actionSet.has(action);
 
     return {
       ruleId: rule.id,
@@ -222,9 +216,7 @@ export class CompiledPolicyEvaluator {
     };
   }
 
-  private compileConditions(
-    conditions: PolicyConditionExpr[],
-  ): (ctx: PolicyContext) => ConditionResult {
+  private compileConditions(conditions: PolicyConditionExpr[]): (ctx: PolicyContext) => ConditionResult {
     // Each top-level condition is implicitly AND-ed
     const compiledExprs = conditions.map((c) => this.compileExpr(c));
 
@@ -238,9 +230,7 @@ export class CompiledPolicyEvaluator {
     };
   }
 
-  private compileExpr(
-    expr: PolicyConditionExpr,
-  ): (ctx: PolicyContext) => ConditionResult {
+  private compileExpr(expr: PolicyConditionExpr): (ctx: PolicyContext) => ConditionResult {
     if ("field" in expr) return this.compileLeaf(expr as PolicyConditionLeaf);
     if ("all" in expr) return this.compileAll((expr as { all: PolicyConditionExpr[] }).all);
     if ("any" in expr) return this.compileAny((expr as { any: PolicyConditionExpr[] }).any);
@@ -248,9 +238,7 @@ export class CompiledPolicyEvaluator {
     return () => ({ passed: true, violations: [] });
   }
 
-  private compileLeaf(
-    leaf: PolicyConditionLeaf,
-  ): (ctx: PolicyContext) => ConditionResult {
+  private compileLeaf(leaf: PolicyConditionLeaf): (ctx: PolicyContext) => ConditionResult {
     const field = leaf.field;
     const operator = leaf.operator;
     const expected = leaf.value;
@@ -273,10 +261,7 @@ export class CompiledPolicyEvaluator {
     };
   }
 
-  private buildAccessor(
-    segments: string[],
-    root: string,
-  ): (ctx: PolicyContext) => unknown {
+  private buildAccessor(segments: string[], root: string): (ctx: PolicyContext) => unknown {
     const rest = segments.slice(1);
 
     if (root === "action") return (ctx) => ctx.action;
@@ -297,9 +282,7 @@ export class CompiledPolicyEvaluator {
     };
 
     const drillSegments =
-      root === "input" || root === "output" || root === "caller" || root === "metadata"
-        ? rest
-        : segments;
+      root === "input" || root === "output" || root === "caller" || root === "metadata" ? rest : segments;
 
     if (drillSegments.length === 0) return getRootObj;
     if (drillSegments.length === 1) {
@@ -321,9 +304,7 @@ export class CompiledPolicyEvaluator {
     };
   }
 
-  private compileAll(
-    exprs: PolicyConditionExpr[],
-  ): (ctx: PolicyContext) => ConditionResult {
+  private compileAll(exprs: PolicyConditionExpr[]): (ctx: PolicyContext) => ConditionResult {
     const compiled = exprs.map((e) => this.compileExpr(e));
     return (ctx) => {
       const violations: ViolatedCondition[] = [];
@@ -335,9 +316,7 @@ export class CompiledPolicyEvaluator {
     };
   }
 
-  private compileAny(
-    exprs: PolicyConditionExpr[],
-  ): (ctx: PolicyContext) => ConditionResult {
+  private compileAny(exprs: PolicyConditionExpr[]): (ctx: PolicyContext) => ConditionResult {
     const compiled = exprs.map((e) => this.compileExpr(e));
     return (ctx) => {
       const allViolations: ViolatedCondition[] = [];
@@ -350,9 +329,7 @@ export class CompiledPolicyEvaluator {
     };
   }
 
-  private compileNot(
-    expr: PolicyConditionExpr,
-  ): (ctx: PolicyContext) => ConditionResult {
+  private compileNot(expr: PolicyConditionExpr): (ctx: PolicyContext) => ConditionResult {
     const compiled = this.compileExpr(expr);
     return (ctx) => {
       const r = compiled(ctx);
@@ -373,21 +350,15 @@ export class CompiledPolicyEvaluator {
 
   private conditionsHaveRateLimit(conditions: PolicyConditionExpr[]): boolean {
     for (const cond of conditions) {
-      if ("field" in cond && (cond as PolicyConditionLeaf).operator === "rate_limit")
-        return true;
+      if ("field" in cond && (cond as PolicyConditionLeaf).operator === "rate_limit") return true;
       if ("all" in cond) {
-        if (this.conditionsHaveRateLimit((cond as { all: PolicyConditionExpr[] }).all))
-          return true;
+        if (this.conditionsHaveRateLimit((cond as { all: PolicyConditionExpr[] }).all)) return true;
       }
       if ("any" in cond) {
-        if (this.conditionsHaveRateLimit((cond as { any: PolicyConditionExpr[] }).any))
-          return true;
+        if (this.conditionsHaveRateLimit((cond as { any: PolicyConditionExpr[] }).any)) return true;
       }
       if ("not" in cond) {
-        if (
-          this.conditionsHaveRateLimit([(cond as { not: PolicyConditionExpr }).not])
-        )
-          return true;
+        if (this.conditionsHaveRateLimit([(cond as { not: PolicyConditionExpr }).not])) return true;
       }
     }
     return false;

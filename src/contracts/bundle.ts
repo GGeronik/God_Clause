@@ -46,10 +46,7 @@ const BUNDLE_PAYLOAD_TYPE = "application/vnd.godclause.bundle+json";
 /**
  * Pack an array of trust contracts into a PolicyBundle.
  */
-export function packBundle(
-  contracts: TrustContract[],
-  opts?: { author?: string; description?: string },
-): PolicyBundle {
+export function packBundle(contracts: TrustContract[], opts?: { author?: string; description?: string }): PolicyBundle {
   return {
     format_version: "1.0",
     created_at: new Date().toISOString(),
@@ -92,10 +89,7 @@ export function signBundle(bundle: PolicyBundle, opts: SigningOptions): SignedBu
  * Verify a signed bundle's DSSE envelope.
  * Returns { valid: true, bundle } on success, or { valid: false } on failure.
  */
-export function verifyBundle(
-  signed: SignedBundle,
-  opts: VerifyOptions,
-): { valid: boolean; bundle?: PolicyBundle } {
+export function verifyBundle(signed: SignedBundle, opts: VerifyOptions): { valid: boolean; bundle?: PolicyBundle } {
   const { envelope } = signed;
 
   for (const sig of envelope.signatures) {

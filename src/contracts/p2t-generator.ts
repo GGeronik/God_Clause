@@ -42,9 +42,27 @@ const TEMPLATES: P2TTemplate[] = [
     name: "PII Protection",
     description: "Detect and redact PII (SSNs, emails, phone numbers, credit cards) in AI outputs",
     params: [
-      { name: "severity", type: "string", required: false, default: "modify", description: "Violation severity: block or modify" },
-      { name: "replacement_text", type: "string", required: false, default: "[REDACTED]", description: "Replacement text for redacted PII" },
-      { name: "fields_to_check", type: "string[]", required: false, default: ["output.contains_pii", "output.contains_ssn", "output.contains_email"], description: "Fields to check for PII" },
+      {
+        name: "severity",
+        type: "string",
+        required: false,
+        default: "modify",
+        description: "Violation severity: block or modify",
+      },
+      {
+        name: "replacement_text",
+        type: "string",
+        required: false,
+        default: "[REDACTED]",
+        description: "Replacement text for redacted PII",
+      },
+      {
+        name: "fields_to_check",
+        type: "string[]",
+        required: false,
+        default: ["output.contains_pii", "output.contains_ssn", "output.contains_email"],
+        description: "Fields to check for PII",
+      },
     ],
   },
   {
@@ -53,8 +71,20 @@ const TEMPLATES: P2TTemplate[] = [
     description: "Rate limit AI actions by user, session, or organization",
     params: [
       { name: "max_requests", type: "number", required: true, description: "Maximum requests per window" },
-      { name: "window", type: "string", required: false, default: "PT1H", description: "Time window (ISO 8601 duration)" },
-      { name: "scope", type: "string", required: false, default: "user", description: "Rate limit scope: user or session" },
+      {
+        name: "window",
+        type: "string",
+        required: false,
+        default: "PT1H",
+        description: "Time window (ISO 8601 duration)",
+      },
+      {
+        name: "scope",
+        type: "string",
+        required: false,
+        default: "user",
+        description: "Rate limit scope: user or session",
+      },
     ],
   },
   {
@@ -62,8 +92,20 @@ const TEMPLATES: P2TTemplate[] = [
     name: "Content Safety",
     description: "Block toxic, harmful, or NSFW content by toxicity score",
     params: [
-      { name: "toxicity_threshold", type: "number", required: false, default: 0.7, description: "Toxicity score threshold (0.0-1.0)" },
-      { name: "categories_to_block", type: "string[]", required: false, default: ["hate_speech", "self_harm", "violence", "sexual_content"], description: "Content categories to block" },
+      {
+        name: "toxicity_threshold",
+        type: "number",
+        required: false,
+        default: 0.7,
+        description: "Toxicity score threshold (0.0-1.0)",
+      },
+      {
+        name: "categories_to_block",
+        type: "string[]",
+        required: false,
+        default: ["hate_speech", "self_harm", "violence", "sexual_content"],
+        description: "Content categories to block",
+      },
     ],
   },
   {
@@ -71,8 +113,20 @@ const TEMPLATES: P2TTemplate[] = [
     name: "Access Control",
     description: "Require authentication and specific roles for AI actions",
     params: [
-      { name: "required_roles", type: "string[]", required: false, default: [], description: "Roles required to perform actions (empty = any authenticated user)" },
-      { name: "require_auth", type: "boolean", required: false, default: true, description: "Whether authentication is required" },
+      {
+        name: "required_roles",
+        type: "string[]",
+        required: false,
+        default: [],
+        description: "Roles required to perform actions (empty = any authenticated user)",
+      },
+      {
+        name: "require_auth",
+        type: "boolean",
+        required: false,
+        default: true,
+        description: "Whether authentication is required",
+      },
     ],
   },
   {
@@ -81,8 +135,20 @@ const TEMPLATES: P2TTemplate[] = [
     description: "Restrict which AI models can be used and enforce model hash verification",
     params: [
       { name: "allowed_models", type: "string[]", required: true, description: "List of allowed model IDs" },
-      { name: "require_hash", type: "boolean", required: false, default: false, description: "Whether model hash verification is required" },
-      { name: "provider", type: "string", required: false, default: "any", description: "Model provider to restrict to" },
+      {
+        name: "require_hash",
+        type: "boolean",
+        required: false,
+        default: false,
+        description: "Whether model hash verification is required",
+      },
+      {
+        name: "provider",
+        type: "string",
+        required: false,
+        default: "any",
+        description: "Model provider to restrict to",
+      },
     ],
   },
   {
@@ -90,8 +156,19 @@ const TEMPLATES: P2TTemplate[] = [
     name: "Compliance Baseline",
     description: "Generate a baseline compliance contract for common frameworks",
     params: [
-      { name: "frameworks", type: "string[]", required: true, description: "Compliance frameworks: soc2, gdpr, hipaa, eu-ai-act, nist" },
-      { name: "retention_period", type: "string", required: false, default: "P365D", description: "Data retention period (ISO 8601)" },
+      {
+        name: "frameworks",
+        type: "string[]",
+        required: true,
+        description: "Compliance frameworks: soc2, gdpr, hipaa, eu-ai-act, nist",
+      },
+      {
+        name: "retention_period",
+        type: "string",
+        required: false,
+        default: "P365D",
+        description: "Data retention period (ISO 8601)",
+      },
     ],
   },
 ];
@@ -103,40 +180,44 @@ function generatePiiProtection(params: Record<string, unknown>, meta: ContractMe
   const replacement = (params.replacement_text as string) || "[REDACTED]";
   const isBlock = severity === "block";
 
-  return formatYAML(meta, {
-    allowed_input_classes: ["public", "internal"],
-    allowed_output_classes: ["public"],
-    retention_period: "P90D",
-    cross_border_transfer: false,
-  }, [
+  return formatYAML(
+    meta,
     {
-      id: "PII-001",
-      description: "Detect and handle PII in outputs",
-      action: "*",
-      field: "output.contains_pii",
-      operator: "equals",
-      value: "false",
-      on_violation: isBlock ? "block" : "modify",
-      message: "Output contains personally identifiable information",
-      tags: ["pii", "privacy", "gdpr"],
-      ...(isBlock ? {} : {
-        obligations: [
-          { obligation_id: "OBL-REDACT-PII", type: "redact_pii", params: { replacement } },
-        ],
-      }),
+      allowed_input_classes: ["public", "internal"],
+      allowed_output_classes: ["public"],
+      retention_period: "P90D",
+      cross_border_transfer: false,
     },
-    {
-      id: "PII-002",
-      description: "Block SSN exposure",
-      action: "*",
-      field: "output.contains_ssn",
-      operator: "equals",
-      value: "false",
-      on_violation: "block",
-      message: "Output contains Social Security Numbers",
-      tags: ["pii", "ssn", "critical"],
-    },
-  ]);
+    [
+      {
+        id: "PII-001",
+        description: "Detect and handle PII in outputs",
+        action: "*",
+        field: "output.contains_pii",
+        operator: "equals",
+        value: "false",
+        on_violation: isBlock ? "block" : "modify",
+        message: "Output contains personally identifiable information",
+        tags: ["pii", "privacy", "gdpr"],
+        ...(isBlock
+          ? {}
+          : {
+              obligations: [{ obligation_id: "OBL-REDACT-PII", type: "redact_pii", params: { replacement } }],
+            }),
+      },
+      {
+        id: "PII-002",
+        description: "Block SSN exposure",
+        action: "*",
+        field: "output.contains_ssn",
+        operator: "equals",
+        value: "false",
+        on_violation: "block",
+        message: "Output contains Social Security Numbers",
+        tags: ["pii", "ssn", "critical"],
+      },
+    ],
+  );
 }
 
 function generateRateLimiting(params: Record<string, unknown>, meta: ContractMetadata): string {
@@ -144,31 +225,40 @@ function generateRateLimiting(params: Record<string, unknown>, meta: ContractMet
   const window = (params.window as string) || "PT1H";
   const scope = (params.scope as string) || "user";
 
-  return formatYAML(meta, {
-    allowed_input_classes: ["public"],
-    allowed_output_classes: ["public"],
-    retention_period: "P30D",
-    cross_border_transfer: false,
-  }, [
+  return formatYAML(
+    meta,
     {
-      id: "RATE-001",
-      description: `Rate limit: ${maxReqs} requests per ${window} per ${scope}`,
-      action: "*",
-      field: `caller.${scope === "session" ? "session_id" : "user_id"}`,
-      operator: "rate_limit",
-      value: "",
-      on_violation: "block",
-      message: "Rate limit exceeded",
-      tags: ["rate-limit", "availability"],
-      rateLimitMax: maxReqs,
-      rateLimitWindow: window,
+      allowed_input_classes: ["public"],
+      allowed_output_classes: ["public"],
+      retention_period: "P30D",
+      cross_border_transfer: false,
     },
-  ]);
+    [
+      {
+        id: "RATE-001",
+        description: `Rate limit: ${maxReqs} requests per ${window} per ${scope}`,
+        action: "*",
+        field: `caller.${scope === "session" ? "session_id" : "user_id"}`,
+        operator: "rate_limit",
+        value: "",
+        on_violation: "block",
+        message: "Rate limit exceeded",
+        tags: ["rate-limit", "availability"],
+        rateLimitMax: maxReqs,
+        rateLimitWindow: window,
+      },
+    ],
+  );
 }
 
 function generateContentSafety(params: Record<string, unknown>, meta: ContractMetadata): string {
   const threshold = (params.toxicity_threshold as number) ?? 0.7;
-  const categories = (params.categories_to_block as string[]) || ["hate_speech", "self_harm", "violence", "sexual_content"];
+  const categories = (params.categories_to_block as string[]) || [
+    "hate_speech",
+    "self_harm",
+    "violence",
+    "sexual_content",
+  ];
 
   const rules: RuleSpec[] = [
     {
@@ -198,12 +288,16 @@ function generateContentSafety(params: Record<string, unknown>, meta: ContractMe
     });
   });
 
-  return formatYAML(meta, {
-    allowed_input_classes: ["public"],
-    allowed_output_classes: ["public"],
-    retention_period: "P90D",
-    cross_border_transfer: false,
-  }, rules);
+  return formatYAML(
+    meta,
+    {
+      allowed_input_classes: ["public"],
+      allowed_output_classes: ["public"],
+      retention_period: "P90D",
+      cross_border_transfer: false,
+    },
+    rules,
+  );
 }
 
 function generateAccessControl(params: Record<string, unknown>, meta: ContractMetadata): string {
@@ -240,39 +334,48 @@ function generateAccessControl(params: Record<string, unknown>, meta: ContractMe
     });
   }
 
-  return formatYAML(meta, {
-    allowed_input_classes: ["public", "internal"],
-    allowed_output_classes: ["public"],
-    retention_period: "P90D",
-    cross_border_transfer: false,
-  }, rules);
+  return formatYAML(
+    meta,
+    {
+      allowed_input_classes: ["public", "internal"],
+      allowed_output_classes: ["public"],
+      retention_period: "P90D",
+      cross_border_transfer: false,
+    },
+    rules,
+  );
 }
 
 function generateModelGovernance(params: Record<string, unknown>, meta: ContractMetadata): string {
   const models = params.allowed_models as string[];
   const modelsStr = models.map((m) => `"${m}"`).join(", ");
 
-  return formatYAML(meta, {
-    allowed_input_classes: ["public"],
-    allowed_output_classes: ["public"],
-    retention_period: "P90D",
-    cross_border_transfer: false,
-  }, [
+  return formatYAML(
+    meta,
     {
-      id: "MODEL-001",
-      description: "Restrict to approved models",
-      action: "*",
-      field: "metadata.model_id",
-      operator: "in",
-      value: `[${modelsStr}]`,
-      on_violation: "block",
-      message: `Model not in approved list: ${models.join(", ")}`,
-      tags: ["model-governance", "compliance"],
+      allowed_input_classes: ["public"],
+      allowed_output_classes: ["public"],
+      retention_period: "P90D",
+      cross_border_transfer: false,
     },
-  ], models.map((m) => ({
-    model_id: m,
-    provider: (params.provider as string) || "any",
-  })));
+    [
+      {
+        id: "MODEL-001",
+        description: "Restrict to approved models",
+        action: "*",
+        field: "metadata.model_id",
+        operator: "in",
+        value: `[${modelsStr}]`,
+        on_violation: "block",
+        message: `Model not in approved list: ${models.join(", ")}`,
+        tags: ["model-governance", "compliance"],
+      },
+    ],
+    models.map((m) => ({
+      model_id: m,
+      provider: (params.provider as string) || "any",
+    })),
+  );
 }
 
 function generateComplianceBaseline(params: Record<string, unknown>, meta: ContractMetadata): string {
@@ -346,7 +449,11 @@ function generateComplianceBaseline(params: Record<string, unknown>, meta: Contr
       message: "AI disclosure required",
       tags: ["compliance", "eu-ai-act", "transparency"],
       obligations: [
-        { obligation_id: "OBL-DISCLOSURE", type: "append_notice", params: { text: "This content was generated by an AI system." } },
+        {
+          obligation_id: "OBL-DISCLOSURE",
+          type: "append_notice",
+          params: { text: "This content was generated by an AI system." },
+        },
       ],
     });
   }
@@ -367,12 +474,16 @@ function generateComplianceBaseline(params: Record<string, unknown>, meta: Contr
     });
   }
 
-  return formatYAML(meta, {
-    allowed_input_classes: ["public", "internal"],
-    allowed_output_classes: ["public"],
-    retention_period: retention,
-    cross_border_transfer: false,
-  }, rules);
+  return formatYAML(
+    meta,
+    {
+      allowed_input_classes: ["public", "internal"],
+      allowed_output_classes: ["public"],
+      retention_period: retention,
+      cross_border_transfer: false,
+    },
+    rules,
+  );
 }
 
 // ─── YAML Formatter ──────────────────────────────────────────────────
@@ -404,12 +515,7 @@ interface ModelSpec {
   provider: string;
 }
 
-function formatYAML(
-  meta: ContractMetadata,
-  dg: DataGovSpec,
-  rules: RuleSpec[],
-  modelBindings?: ModelSpec[],
-): string {
+function formatYAML(meta: ContractMetadata, dg: DataGovSpec, rules: RuleSpec[], modelBindings?: ModelSpec[]): string {
   let yaml = `schema_version: "1.0"
 metadata:
   name: ${meta.name}
@@ -520,7 +626,9 @@ export class P2TGenerator {
   generate(input: P2TInput): string {
     const template = this.templates.find((t) => t.id === input.template);
     if (!template) {
-      throw new Error(`Unknown template: "${input.template}". Available: ${this.templates.map((t) => t.id).join(", ")}`);
+      throw new Error(
+        `Unknown template: "${input.template}". Available: ${this.templates.map((t) => t.id).join(", ")}`,
+      );
     }
 
     // Validate required params
@@ -564,7 +672,10 @@ export class P2TGenerator {
   }
 
   /** Register a custom template. */
-  registerTemplate(template: P2TTemplate, generator: (params: Record<string, unknown>, meta: ContractMetadata) => string): void {
+  registerTemplate(
+    template: P2TTemplate,
+    generator: (params: Record<string, unknown>, meta: ContractMetadata) => string,
+  ): void {
     this.templates.push(template);
     GENERATORS[template.id] = generator;
   }

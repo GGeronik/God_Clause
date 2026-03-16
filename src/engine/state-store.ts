@@ -59,9 +59,7 @@ export class MemoryStateStore implements StateStore {
  * Supports: PT1H, PT30M, PT5S, PT1H30M, PT1H30M15S, P1D, P7D, etc.
  */
 export function parseISO8601Duration(duration: string): number {
-  const match = duration.match(
-    /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/,
-  );
+  const match = duration.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/);
   if (!match) {
     throw new Error(`Invalid ISO 8601 duration: ${duration}`);
   }

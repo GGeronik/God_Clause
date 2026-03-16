@@ -77,9 +77,7 @@ describe("SecureBoot", () => {
       contracts: [TEST_CONTRACT_YAML],
     });
 
-    const contractsCheck = preflight.checks.find(
-      (c) => c.name === "contracts_loaded",
-    );
+    const contractsCheck = preflight.checks.find((c) => c.name === "contracts_loaded");
     expect(contractsCheck).toBeDefined();
     expect(contractsCheck!.passed).toBe(true);
   });
@@ -90,9 +88,7 @@ describe("SecureBoot", () => {
     });
 
     expect(preflight.ready).toBe(false);
-    const contractsCheck = preflight.checks.find(
-      (c) => c.name === "contracts_loaded",
-    );
+    const contractsCheck = preflight.checks.find((c) => c.name === "contracts_loaded");
     expect(contractsCheck).toBeDefined();
     expect(contractsCheck!.passed).toBe(false);
   });

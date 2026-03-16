@@ -162,8 +162,15 @@ export function lintContract(contract: TrustContract): LintResult[] {
 // ─── Extended Lint Helpers ──────────────────────────────────────────
 
 const STANDARD_OBLIGATION_TYPES = new Set([
-  "redact_pii", "append_notice", "append_attribution", "require_review",
-  "add_disclaimer", "truncate", "filter", "log_extra", "notify",
+  "redact_pii",
+  "append_notice",
+  "append_attribution",
+  "require_review",
+  "add_disclaimer",
+  "truncate",
+  "filter",
+  "log_extra",
+  "notify",
 ]);
 
 /** Detect rules shadowed by earlier block rules with the same or broader action scope. */
@@ -178,8 +185,8 @@ function lintRuleShadowing(rules: PolicyRule[], results: LintResult[]): void {
       const blockerActions = new Set(Array.isArray(blocker.action) ? blocker.action : [blocker.action]);
 
       // Wildcard blocks shadow everything; same action blocks shadow same action
-      const isShadowed = blockerActions.has("*") ||
-        [...ruleActions].every((a) => blockerActions.has(a) || blockerActions.has("*"));
+      const isShadowed =
+        blockerActions.has("*") || [...ruleActions].every((a) => blockerActions.has(a) || blockerActions.has("*"));
 
       if (isShadowed && rule.on_violation !== "block") {
         results.push({
@@ -227,9 +234,7 @@ function lintMissingDenyForHazard(rules: PolicyRule[], results: LintResult[]): v
 function lintModelBindingUnused(contract: TrustContract, results: LintResult[]): void {
   if (!contract.model_bindings?.length) return;
 
-  const referencesModel = contract.rules.some((rule) =>
-    conditionsReferenceField(rule.conditions, "metadata.model")
-  );
+  const referencesModel = contract.rules.some((rule) => conditionsReferenceField(rule.conditions, "metadata.model"));
 
   if (!referencesModel) {
     results.push({

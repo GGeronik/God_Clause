@@ -12,10 +12,7 @@ import type { AuditEntry } from "../types";
 
 const program = new Command();
 
-program
-  .name("god-clause")
-  .description("God Clause — Embeddable AI Governance Framework CLI")
-  .version("2.0.0");
+program.name("god-clause").description("God Clause — Embeddable AI Governance Framework CLI").version("2.0.0");
 
 // ─── validate ───────────────────────────────────────────────────────
 program
@@ -111,7 +108,9 @@ program
     const c1 = parseContract(readFileSync(resolve(file1), "utf-8"));
     const c2 = parseContract(readFileSync(resolve(file2), "utf-8"));
 
-    console.log(`Comparing: ${c1.metadata.name} v${c1.metadata.version} → ${c2.metadata.name} v${c2.metadata.version}\n`);
+    console.log(
+      `Comparing: ${c1.metadata.name} v${c1.metadata.version} → ${c2.metadata.name} v${c2.metadata.version}\n`,
+    );
 
     // Compare rules
     const rules1 = new Map(c1.rules.map((r) => [r.id, r]));
@@ -204,21 +203,25 @@ program
 
     const decision = await gov.evaluate(ctx, evalOpts as any);
 
-    console.log(JSON.stringify({
-      decision_id: decision.decision_id,
-      outcome: decision.outcome,
-      allowed: decision.allowed,
-      blocks: decision.blocks.map((b) => ({ rule_id: b.rule_id, description: b.rule_description })),
-      warnings: decision.warnings.map((w) => ({ rule_id: w.rule_id, description: w.rule_description })),
-      obligations: decision.obligations.map((o) => ({ id: o.obligation_id, type: o.type })),
-      governance_context: decision.governance_context,
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          decision_id: decision.decision_id,
+          outcome: decision.outcome,
+          allowed: decision.allowed,
+          blocks: decision.blocks.map((b) => ({ rule_id: b.rule_id, description: b.rule_description })),
+          warnings: decision.warnings.map((w) => ({ rule_id: w.rule_id, description: w.rule_description })),
+          obligations: decision.obligations.map((o) => ({ id: o.obligation_id, type: o.type })),
+          governance_context: decision.governance_context,
+        },
+        null,
+        2,
+      ),
+    );
   });
 
 // ─── audit verify ───────────────────────────────────────────────────
-const auditCmd = program
-  .command("audit")
-  .description("Audit log operations");
+const auditCmd = program.command("audit").description("Audit log operations");
 
 auditCmd
   .command("verify")
@@ -258,19 +261,34 @@ auditCmd
 
     let output: string;
     if (opts.format === "csv") {
-      const headers = ["entry_id", "decision_id", "timestamp", "action", "allowed", "outcome", "contract_name", "user_id", "blocks", "warnings"];
-      const rows = entries.map((e) => [
-        e.entry_id,
-        e.decision_id,
-        e.timestamp,
-        e.action,
-        e.allowed,
-        e.outcome ?? "",
-        e.contract_name,
-        e.caller.user_id,
-        e.blocks.join(";"),
-        e.warnings.join(";"),
-      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+      const headers = [
+        "entry_id",
+        "decision_id",
+        "timestamp",
+        "action",
+        "allowed",
+        "outcome",
+        "contract_name",
+        "user_id",
+        "blocks",
+        "warnings",
+      ];
+      const rows = entries.map((e) =>
+        [
+          e.entry_id,
+          e.decision_id,
+          e.timestamp,
+          e.action,
+          e.allowed,
+          e.outcome ?? "",
+          e.contract_name,
+          e.caller.user_id,
+          e.blocks.join(";"),
+          e.warnings.join(";"),
+        ]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(","),
+      );
       output = [headers.join(","), ...rows].join("\n");
     } else {
       output = JSON.stringify(entries, null, 2);
@@ -293,17 +311,19 @@ program
   .option("--audit-dir <dir>", "Directory for audit JSONL files")
   .option("--hmac-secret <key>", "HMAC secret key for audit signing")
   .option("--log-level <level>", "Log level (debug, info, warn, error)", "info")
-  .action(async (opts: { port: string; contracts: string; auditDir?: string; hmacSecret?: string; logLevel: string }) => {
-    const { createServer } = await import("../server/server");
-    const server = createServer({
-      port: parseInt(opts.port, 10),
-      contractsDir: resolve(opts.contracts),
-      auditDir: opts.auditDir ? resolve(opts.auditDir) : undefined,
-      hmacSecret: opts.hmacSecret,
-      logLevel: opts.logLevel as any,
-    });
-    await server.start();
-  });
+  .action(
+    async (opts: { port: string; contracts: string; auditDir?: string; hmacSecret?: string; logLevel: string }) => {
+      const { createServer } = await import("../server/server");
+      const server = createServer({
+        port: parseInt(opts.port, 10),
+        contractsDir: resolve(opts.contracts),
+        auditDir: opts.auditDir ? resolve(opts.auditDir) : undefined,
+        hmacSecret: opts.hmacSecret,
+        logLevel: opts.logLevel as any,
+      });
+      await server.start();
+    },
+  );
 
 // ─── init ───────────────────────────────────────────────────────────
 program
@@ -384,7 +404,10 @@ rules:
 program
   .command("generate")
   .description("Generate a trust contract from a built-in template")
-  .requiredOption("--template <id>", "Template ID (pii-protection, rate-limiting, content-safety, access-control, model-governance, compliance-baseline)")
+  .requiredOption(
+    "--template <id>",
+    "Template ID (pii-protection, rate-limiting, content-safety, access-control, model-governance, compliance-baseline)",
+  )
   .option("--params <json>", "Template parameters as JSON string", "{}")
   .option("--name <name>", "Contract name override")
   .option("--output <file>", "Output file (default: stdout)")
@@ -430,11 +453,15 @@ program
 
     // Load contracts
     if (existsSync(dir)) {
-      const files = readdirSync(dir).filter((f: string) => f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json"));
+      const files = readdirSync(dir).filter(
+        (f: string) => f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json"),
+      );
       for (const f of files) {
         try {
           gov.loadContractYAML(readFileSync(resolve(dir, f), "utf-8"));
-        } catch { /* skip invalid */ }
+        } catch {
+          /* skip invalid */
+        }
       }
     }
 
@@ -495,7 +522,9 @@ program
 
     const contractSources: string[] = [];
     if (existsSync(dir)) {
-      const files = readdirSync(dir).filter((f: string) => f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json"));
+      const files = readdirSync(dir).filter(
+        (f: string) => f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json"),
+      );
       for (const f of files) {
         contractSources.push(readFileSync(resolve(dir, f), "utf-8"));
       }
@@ -583,12 +612,16 @@ program
     const dir = resolve(opts.contracts);
     const gov = new GodClause();
     if (existsSync(dir)) {
-      const files = readdirSync(dir).filter((f: string) => f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json"));
+      const files = readdirSync(dir).filter(
+        (f: string) => f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json"),
+      );
       for (const f of files) {
         try {
           const source = readFileSync(resolve(dir, f), "utf-8");
           gov.loadContractYAML(source);
-        } catch { /* skip invalid files */ }
+        } catch {
+          /* skip invalid files */
+        }
       }
     }
 

@@ -1,13 +1,7 @@
 /// <reference lib="ES2022" />
 
 import { performance } from "perf_hooks";
-import {
-  WasmSandboxOptions,
-  WasmResourceUsage,
-  ObligationResult,
-  PolicyContext,
-  ViolatedCondition,
-} from "../types";
+import { WasmSandboxOptions, WasmResourceUsage, ObligationResult, PolicyContext, ViolatedCondition } from "../types";
 import { ConditionResult } from "../engine/evaluator";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -71,56 +65,50 @@ export function createMinimalWasmModule(): Uint8Array {
   //   type 0: (i32) -> i32   (for evaluate)
   //   type 1: () -> i32      (for execute_obligation)
   const typeSection = section(0x01, [
-    2,                          // 2 types
-    0x60, 1, 0x7f, 1, 0x7f,    // type 0: (i32) -> (i32)
-    0x60, 0, 1, 0x7f,           // type 1: () -> (i32)
+    2, // 2 types
+    0x60,
+    1,
+    0x7f,
+    1,
+    0x7f, // type 0: (i32) -> (i32)
+    0x60,
+    0,
+    1,
+    0x7f, // type 1: () -> (i32)
   ]);
 
   // Import section: import memory from env
   const memImportName = [0x06, ...strBytes("memory")]; // "memory"
-  const envName = [0x03, ...strBytes("env")];          // "env"
+  const envName = [0x03, ...strBytes("env")]; // "env"
   const importSection = section(0x02, [
-    1,                          // 1 import
+    1, // 1 import
     ...envName,
     ...memImportName,
-    0x02, 0x00, 0x01,           // memory, limits: min=0, max not specified (flags=0, initial=1)
+    0x02,
+    0x00,
+    0x01, // memory, limits: min=0, max not specified (flags=0, initial=1)
   ]);
 
   // Function section: 2 functions
   const funcSection = section(0x03, [
-    2,     // 2 functions
-    0x00,  // function 0 uses type 0
-    0x01,  // function 1 uses type 1
+    2, // 2 functions
+    0x00, // function 0 uses type 0
+    0x01, // function 1 uses type 1
   ]);
 
   // Export section: export both functions
   const evalExport = [...strBytes("evaluate"), 0x00, 0x00]; // func index 0
   const obligExport = [...strBytes("execute_obligation"), 0x00, 0x01]; // func index 1
-  const exportSection = section(0x07, [
-    2,
-    0x08, ...evalExport,
-    0x12, ...obligExport,
-  ]);
+  const exportSection = section(0x07, [2, 0x08, ...evalExport, 0x12, ...obligExport]);
 
   // Code section: 2 function bodies
   // Function 0 (evaluate): return 0 (i32.const 0; end)
   const body0 = [0x00, 0x41, 0x00, 0x0b]; // no locals, i32.const 0, end
   // Function 1 (execute_obligation): return 1 (i32.const 1; end)
   const body1 = [0x00, 0x41, 0x01, 0x0b]; // no locals, i32.const 1, end
-  const codeSection = section(0x0a, [
-    2,
-    ...leb128(body0.length), ...body0,
-    ...leb128(body1.length), ...body1,
-  ]);
+  const codeSection = section(0x0a, [2, ...leb128(body0.length), ...body0, ...leb128(body1.length), ...body1]);
 
-  const bytes = [
-    ...WASM_HEADER,
-    ...typeSection,
-    ...importSection,
-    ...funcSection,
-    ...exportSection,
-    ...codeSection,
-  ];
+  const bytes = [...WASM_HEADER, ...typeSection, ...importSection, ...funcSection, ...exportSection, ...codeSection];
 
   return new Uint8Array(bytes);
 }
@@ -132,42 +120,32 @@ export function createMinimalWasmModule(): Uint8Array {
 export function createFailingWasmModule(): Uint8Array {
   const typeSection = section(0x01, [
     2,
-    0x60, 1, 0x7f, 1, 0x7f,    // type 0: (i32) -> (i32)
-    0x60, 0, 1, 0x7f,           // type 1: () -> (i32)
+    0x60,
+    1,
+    0x7f,
+    1,
+    0x7f, // type 0: (i32) -> (i32)
+    0x60,
+    0,
+    1,
+    0x7f, // type 1: () -> (i32)
   ]);
 
   const envName = [0x03, ...strBytes("env")];
   const memImportName = [0x06, ...strBytes("memory")];
-  const importSection = section(0x02, [
-    1,
-    ...envName,
-    ...memImportName,
-    0x02, 0x00, 0x01,
-  ]);
+  const importSection = section(0x02, [1, ...envName, ...memImportName, 0x02, 0x00, 0x01]);
 
-  const funcSection = section(0x03, [
-    2,
-    0x00,
-    0x01,
-  ]);
+  const funcSection = section(0x03, [2, 0x00, 0x01]);
 
   const evalExport = [...strBytes("evaluate"), 0x00, 0x00];
   const obligExport = [...strBytes("execute_obligation"), 0x00, 0x01];
-  const exportSection = section(0x07, [
-    2,
-    0x08, ...evalExport,
-    0x12, ...obligExport,
-  ]);
+  const exportSection = section(0x07, [2, 0x08, ...evalExport, 0x12, ...obligExport]);
 
   // Function 0: return 1 (fail)
   const body0 = [0x00, 0x41, 0x01, 0x0b];
   // Function 1: return 0 (obligation failure)
   const body1 = [0x00, 0x41, 0x00, 0x0b];
-  const codeSection = section(0x0a, [
-    2,
-    ...leb128(body0.length), ...body0,
-    ...leb128(body1.length), ...body1,
-  ]);
+  const codeSection = section(0x0a, [2, ...leb128(body0.length), ...body0, ...leb128(body1.length), ...body1]);
 
   return new Uint8Array([
     ...WASM_HEADER,
@@ -186,47 +164,45 @@ export function createFailingWasmModule(): Uint8Array {
 export function createMemoryHogModule(pages: number): Uint8Array {
   const typeSection = section(0x01, [
     2,
-    0x60, 1, 0x7f, 1, 0x7f,    // type 0: (i32) -> (i32) for evaluate
-    0x60, 0, 1, 0x7f,           // type 1: () -> (i32) for grow_memory
+    0x60,
+    1,
+    0x7f,
+    1,
+    0x7f, // type 0: (i32) -> (i32) for evaluate
+    0x60,
+    0,
+    1,
+    0x7f, // type 1: () -> (i32) for grow_memory
   ]);
 
   const envName = [0x03, ...strBytes("env")];
   const memImportName = [0x06, ...strBytes("memory")];
-  const importSection = section(0x02, [
-    1,
-    ...envName,
-    ...memImportName,
-    0x02, 0x00, 0x01,
-  ]);
+  const importSection = section(0x02, [1, ...envName, ...memImportName, 0x02, 0x00, 0x01]);
 
-  const funcSection = section(0x03, [
-    2,
-    0x00,
-    0x01,
-  ]);
+  const funcSection = section(0x03, [2, 0x00, 0x01]);
 
   const evalExport = [...strBytes("evaluate"), 0x00, 0x00];
   const growExport = [...strBytes("grow_memory"), 0x00, 0x01];
-  const exportSection = section(0x07, [
-    2,
-    0x08, ...evalExport,
-    0x0b, ...growExport,
-  ]);
+  const exportSection = section(0x07, [2, 0x08, ...evalExport, 0x0b, ...growExport]);
 
   // evaluate: return 0
   const body0 = [0x00, 0x41, 0x00, 0x0b];
   // grow_memory: memory.grow(pages), return result (-1 on failure)
   const pagesLeb = leb128(pages);
   const body1Instructions = [
-    0x00,           // no locals
-    0x41, ...pagesLeb, // i32.const pages
-    0x40, 0x00,     // memory.grow 0
-    0x0b,           // end
+    0x00, // no locals
+    0x41,
+    ...pagesLeb, // i32.const pages
+    0x40,
+    0x00, // memory.grow 0
+    0x0b, // end
   ];
   const codeSection = section(0x0a, [
     2,
-    ...leb128(body0.length), ...body0,
-    ...leb128(body1Instructions.length), ...body1Instructions,
+    ...leb128(body0.length),
+    ...body0,
+    ...leb128(body1Instructions.length),
+    ...body1Instructions,
   ]);
 
   return new Uint8Array([
@@ -265,9 +241,7 @@ export class WasmPolicySandbox {
    */
   loadModule(wasmBytes: Uint8Array): string {
     if (this.modules.size >= this.opts.maxModules) {
-      throw new Error(
-        `Maximum module limit reached (${this.opts.maxModules}). Unload a module first.`,
-      );
+      throw new Error(`Maximum module limit reached (${this.opts.maxModules}). Unload a module first.`);
     }
 
     const id = `wasm_module_${this.nextId++}`;
@@ -296,12 +270,7 @@ export class WasmPolicySandbox {
           // Returns 0 — in a full implementation would read from frozen context
           return 0;
         },
-        report_violation: (
-          _fieldPtr: number,
-          _fieldLen: number,
-          _msgPtr: number,
-          _msgLen: number,
-        ) => {
+        report_violation: (_fieldPtr: number, _fieldLen: number, _msgPtr: number, _msgLen: number) => {
           // Collect a violation during evaluation
           const loaded = this.modules.get(id);
           if (loaded) {
@@ -320,18 +289,14 @@ export class WasmPolicySandbox {
     try {
       compiled = new WebAssembly.Module(wasmBytes);
     } catch (err) {
-      throw new Error(
-        `Failed to compile WASM module: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      throw new Error(`Failed to compile WASM module: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     let instance: { exports: Record<string, any> };
     try {
       instance = new WebAssembly.Instance(compiled, importObject);
     } catch (err) {
-      throw new Error(
-        `Failed to instantiate WASM module: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      throw new Error(`Failed to instantiate WASM module: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     const loaded: LoadedModule = {
@@ -354,10 +319,7 @@ export class WasmPolicySandbox {
    * Evaluate a condition using a loaded WASM module.
    * The WASM module's `evaluate` export should return 0 for pass, non-zero for fail.
    */
-  async evaluate(
-    moduleId: string,
-    context: PolicyContext,
-  ): Promise<ConditionResult> {
+  async evaluate(moduleId: string, context: PolicyContext): Promise<ConditionResult> {
     const mod = this.getModule(moduleId);
 
     // Freeze the context to prevent mutation during evaluation
@@ -365,13 +327,9 @@ export class WasmPolicySandbox {
     mod.context = frozenContext;
     mod.violations = [];
 
-    const evaluateFn = mod.instance.exports.evaluate as
-      | ((ctxPtr: number) => number)
-      | undefined;
+    const evaluateFn = mod.instance.exports.evaluate as ((ctxPtr: number) => number) | undefined;
     if (typeof evaluateFn !== "function") {
-      throw new Error(
-        `Module ${moduleId} does not export an 'evaluate' function.`,
-      );
+      throw new Error(`Module ${moduleId} does not export an 'evaluate' function.`);
     }
 
     const start = performance.now();
@@ -382,10 +340,7 @@ export class WasmPolicySandbox {
         resolve(evaluateFn(0));
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error("WASM execution timed out")),
-          this.opts.executionTimeoutMs,
-        ),
+        setTimeout(() => reject(new Error("WASM execution timed out")), this.opts.executionTimeoutMs),
       ),
     ]);
 
@@ -420,15 +375,10 @@ export class WasmPolicySandbox {
   /**
    * Execute an obligation handler in the WASM sandbox.
    */
-  async executeObligation(
-    moduleId: string,
-    params: Record<string, unknown>,
-  ): Promise<ObligationResult> {
+  async executeObligation(moduleId: string, params: Record<string, unknown>): Promise<ObligationResult> {
     const mod = this.getModule(moduleId);
 
-    const executeFn = mod.instance.exports.execute_obligation as
-      | (() => number)
-      | undefined;
+    const executeFn = mod.instance.exports.execute_obligation as (() => number) | undefined;
     if (typeof executeFn !== "function") {
       return {
         success: false,
@@ -444,10 +394,7 @@ export class WasmPolicySandbox {
           resolve(executeFn());
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("WASM obligation execution timed out")),
-            this.opts.executionTimeoutMs,
-          ),
+          setTimeout(() => reject(new Error("WASM obligation execution timed out")), this.opts.executionTimeoutMs),
         ),
       ]);
 

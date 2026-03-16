@@ -1,4 +1,13 @@
-import { createHash, generateKeyPairSync, sign, verify, createCipheriv, createDecipheriv, randomBytes, KeyObject } from "crypto";
+import {
+  createHash,
+  generateKeyPairSync,
+  sign,
+  verify,
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  KeyObject,
+} from "crypto";
 import { execFile } from "child_process";
 import { TrustQuote, TrustAnchorInfo } from "../types";
 
@@ -94,15 +103,19 @@ export class SoftwareTrustAnchor implements TrustAnchor {
     const measurements: Record<string, string> = {
       node_version: createHash("sha256").update(process.version).digest("hex"),
       platform: createHash("sha256").update(`${process.platform}-${process.arch}`).digest("hex"),
-      uptime: createHash("sha256").update(String(Math.floor(process.uptime()))).digest("hex"),
+      uptime: createHash("sha256")
+        .update(String(Math.floor(process.uptime())))
+        .digest("hex"),
     };
 
     // Build quote payload and sign it
-    const payload = Buffer.from(JSON.stringify({
-      nonce: nonce.toString("hex"),
-      measurements,
-      timestamp,
-    }));
+    const payload = Buffer.from(
+      JSON.stringify({
+        nonce: nonce.toString("hex"),
+        measurements,
+        timestamp,
+      }),
+    );
 
     const signature = await this.sign(payload);
 
@@ -358,9 +371,7 @@ export class FirecrackerTrustAnchor implements TrustAnchor {
  * Create a trust anchor using the first available backend from the
  * preference list. Defaults to ["tpm", "software"].
  */
-export async function createTrustAnchor(
-  preference: string[] = ["tpm", "software"],
-): Promise<TrustAnchor> {
+export async function createTrustAnchor(preference: string[] = ["tpm", "software"]): Promise<TrustAnchor> {
   for (const pref of preference) {
     const anchor = createAnchorByType(pref);
     if (!anchor) continue;
@@ -380,11 +391,16 @@ export async function createTrustAnchor(
 
 function createAnchorByType(type: string): TrustAnchor | null {
   switch (type) {
-    case "software": return new SoftwareTrustAnchor();
-    case "tpm": return new TPMTrustAnchor();
-    case "sgx": return new SGXTrustAnchor();
-    case "firecracker": return new FirecrackerTrustAnchor();
-    default: return null;
+    case "software":
+      return new SoftwareTrustAnchor();
+    case "tpm":
+      return new TPMTrustAnchor();
+    case "sgx":
+      return new SGXTrustAnchor();
+    case "firecracker":
+      return new FirecrackerTrustAnchor();
+    default:
+      return null;
   }
 }
 

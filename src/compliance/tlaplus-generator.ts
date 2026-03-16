@@ -111,13 +111,9 @@ export class TLAPlusGenerator {
       const condExpr = ruleConditionToTLA(rule);
       const ruleVar = `rule_${sanitizeId(rule.id)}_passed`;
       const actions = Array.isArray(rule.action) ? rule.action : [rule.action];
-      const actionGuard = actions.includes("*")
-        ? "TRUE"
-        : actions.map((a) => `action = "${a}"`).join(" \\/ ");
+      const actionGuard = actions.includes("*") ? "TRUE" : actions.map((a) => `action = "${a}"`).join(" \\/ ");
 
-      lines.push(
-        `  /\\ ${ruleVar}' = IF (${actionGuard}) THEN (${condExpr}) ELSE TRUE`,
-      );
+      lines.push(`  /\\ ${ruleVar}' = IF (${actionGuard}) THEN (${condExpr}) ELSE TRUE`);
     }
 
     // Unchanged field vars
@@ -134,38 +130,22 @@ export class TLAPlusGenerator {
     lines.push(`  /\\ state' = "decided"`);
 
     // Compute outcome based on rule severities
-    const blockRules = contract.rules.filter(
-      (r) => r.on_violation === "block",
-    );
-    const modifyRules = contract.rules.filter(
-      (r) => r.on_violation === "modify",
-    );
+    const blockRules = contract.rules.filter((r) => r.on_violation === "block");
+    const modifyRules = contract.rules.filter((r) => r.on_violation === "modify");
 
     if (blockRules.length > 0) {
-      const anyBlockFailed = blockRules
-        .map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`)
-        .join(" \\/ ");
+      const anyBlockFailed = blockRules.map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`).join(" \\/ ");
       const anyModifyFailed =
         modifyRules.length > 0
-          ? modifyRules
-              .map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`)
-              .join(" \\/ ")
+          ? modifyRules.map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`).join(" \\/ ")
           : "FALSE";
 
-      lines.push(
-        `  /\\ outcome' = IF (${anyBlockFailed}) THEN Deny`,
-      );
-      lines.push(
-        `               ELSE IF (${anyModifyFailed}) THEN Modify`,
-      );
+      lines.push(`  /\\ outcome' = IF (${anyBlockFailed}) THEN Deny`);
+      lines.push(`               ELSE IF (${anyModifyFailed}) THEN Modify`);
       lines.push(`               ELSE Permit`);
     } else if (modifyRules.length > 0) {
-      const anyModifyFailed = modifyRules
-        .map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`)
-        .join(" \\/ ");
-      lines.push(
-        `  /\\ outcome' = IF (${anyModifyFailed}) THEN Modify ELSE Permit`,
-      );
+      const anyModifyFailed = modifyRules.map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`).join(" \\/ ");
+      lines.push(`  /\\ outcome' = IF (${anyModifyFailed}) THEN Modify ELSE Permit`);
     } else {
       lines.push(`  /\\ outcome' = Permit`);
     }
@@ -176,9 +156,7 @@ export class TLAPlusGenerator {
       lines.push(`  /\\ ${fieldToVar(field)}' = ${fieldToVar(field)}`);
     }
     for (const rule of contract.rules) {
-      lines.push(
-        `  /\\ rule_${sanitizeId(rule.id)}_passed' = rule_${sanitizeId(rule.id)}_passed`,
-      );
+      lines.push(`  /\\ rule_${sanitizeId(rule.id)}_passed' = rule_${sanitizeId(rule.id)}_passed`);
     }
     lines.push(``);
 
@@ -195,23 +173,15 @@ export class TLAPlusGenerator {
       lines.push(`${inv} ==`);
       if (inv === "NoPermitWhenBlockViolated") {
         if (blockRules.length > 0) {
-          const blockFailed = blockRules
-            .map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`)
-            .join(" \\/ ");
-          lines.push(
-            `  state = "decided" => ~((${blockFailed}) /\\ outcome = Permit)`,
-          );
+          const blockFailed = blockRules.map((r) => `rule_${sanitizeId(r.id)}_passed = FALSE`).join(" \\/ ");
+          lines.push(`  state = "decided" => ~((${blockFailed}) /\\ outcome = Permit)`);
         } else {
           lines.push(`  TRUE`);
         }
       } else if (inv === "ModifyHasObligations") {
-        lines.push(
-          `  state = "decided" => (outcome = Modify => TRUE) \\* Obligations checked structurally`,
-        );
+        lines.push(`  state = "decided" => (outcome = Modify => TRUE) \\* Obligations checked structurally`);
       } else if (inv === "TypeInvariant") {
-        lines.push(
-          `  /\\ state \\in {"init", "evaluating", "decided"}`,
-        );
+        lines.push(`  /\\ state \\in {"init", "evaluating", "decided"}`);
         lines.push(`  /\\ outcome \\in {Permit, Deny, Modify}`);
       }
       lines.push(``);
@@ -267,8 +237,7 @@ export class TLAPlusGenerator {
       return {
         status: "unavailable",
         invariantsChecked: spec.invariants,
-        rawOutput:
-          "TLC path not configured. Set tlcPath option to tla2tools.jar location.",
+        rawOutput: "TLC path not configured. Set tlcPath option to tla2tools.jar location.",
       };
     }
 
@@ -280,51 +249,42 @@ export class TLAPlusGenerator {
           args.push("-maxSetSize", String(this.opts.maxStates));
         }
 
-        execFile(
-          "java",
-          args,
-          { timeout: 60000 },
-          (error, stdout, stderr) => {
-            const rawOutput = stdout + "\n" + stderr;
+        execFile("java", args, { timeout: 60000 }, (error, stdout, stderr) => {
+          const rawOutput = stdout + "\n" + stderr;
 
-            if (error) {
-              // Check if it's a model checking failure or a setup error
-              if (
-                rawOutput.includes("Error:") ||
-                rawOutput.includes("Invariant")
-              ) {
-                resolve({
-                  status: "failed",
-                  invariantsChecked: spec.invariants,
-                  statesExplored: parseStatesExplored(rawOutput),
-                  counterexample: parseCounterexample(rawOutput),
-                  rawOutput,
-                });
-              } else {
-                resolve({
-                  status: "error",
-                  invariantsChecked: spec.invariants,
-                  rawOutput,
-                });
-              }
-              return;
+          if (error) {
+            // Check if it's a model checking failure or a setup error
+            if (rawOutput.includes("Error:") || rawOutput.includes("Invariant")) {
+              resolve({
+                status: "failed",
+                invariantsChecked: spec.invariants,
+                statesExplored: parseStatesExplored(rawOutput),
+                counterexample: parseCounterexample(rawOutput),
+                rawOutput,
+              });
+            } else {
+              resolve({
+                status: "error",
+                invariantsChecked: spec.invariants,
+                rawOutput,
+              });
             }
+            return;
+          }
 
-            resolve({
-              status: "passed",
-              statesExplored: parseStatesExplored(rawOutput),
-              invariantsChecked: spec.invariants,
-              rawOutput,
-            });
-          },
-        );
+          resolve({
+            status: "passed",
+            statesExplored: parseStatesExplored(rawOutput),
+            invariantsChecked: spec.invariants,
+            rawOutput,
+          });
+        });
       });
     } catch {
       return {
         status: "unavailable",
         invariantsChecked: spec.invariants,
-        rawOutput:
-          "Java or TLC not found. Install Java and download tla2tools.jar.",
+        rawOutput: "Java or TLC not found. Install Java and download tla2tools.jar.",
       };
     }
   }
@@ -333,9 +293,7 @@ export class TLAPlusGenerator {
     const invariants = ["TypeInvariant"];
     const hasBlock = contract.rules.some((r) => r.on_violation === "block");
     if (hasBlock) invariants.push("NoPermitWhenBlockViolated");
-    const hasModify = contract.rules.some(
-      (r) => r.on_violation === "modify" && r.obligations?.length,
-    );
+    const hasModify = contract.rules.some((r) => r.on_violation === "modify" && r.obligations?.length);
     if (hasModify) invariants.push("ModifyHasObligations");
     return invariants;
   }
@@ -356,9 +314,7 @@ export function sanitizeId(id: string): string {
 }
 
 export function fieldToVar(field: string): string {
-  return (
-    "f_" + field.replace(/\./g, "_").replace(/[^a-zA-Z0-9_]/g, "")
-  );
+  return "f_" + field.replace(/\./g, "_").replace(/[^a-zA-Z0-9_]/g, "");
 }
 
 export function extractAllFields(rules: PolicyRule[]): string[] {
@@ -369,29 +325,14 @@ export function extractAllFields(rules: PolicyRule[]): string[] {
   return [...fields].sort();
 }
 
-function extractFieldsFromConditions(
-  conditions: PolicyConditionExpr[],
-  fields: Set<string>,
-): void {
+function extractFieldsFromConditions(conditions: PolicyConditionExpr[], fields: Set<string>): void {
   for (const cond of conditions) {
     if ("field" in cond) {
       fields.add((cond as PolicyConditionLeaf).field);
     }
-    if ("all" in cond)
-      extractFieldsFromConditions(
-        (cond as { all: PolicyConditionExpr[] }).all,
-        fields,
-      );
-    if ("any" in cond)
-      extractFieldsFromConditions(
-        (cond as { any: PolicyConditionExpr[] }).any,
-        fields,
-      );
-    if ("not" in cond)
-      extractFieldsFromConditions(
-        [(cond as { not: PolicyConditionExpr }).not],
-        fields,
-      );
+    if ("all" in cond) extractFieldsFromConditions((cond as { all: PolicyConditionExpr[] }).all, fields);
+    if ("any" in cond) extractFieldsFromConditions((cond as { any: PolicyConditionExpr[] }).any, fields);
+    if ("not" in cond) extractFieldsFromConditions([(cond as { not: PolicyConditionExpr }).not], fields);
   }
 }
 
@@ -408,15 +349,11 @@ export function conditionToTLA(expr: PolicyConditionExpr): string {
     return leafToTLA(varName, leaf.operator, leaf.value);
   }
   if ("all" in expr) {
-    const parts = (expr as { all: PolicyConditionExpr[] }).all.map(
-      (e: PolicyConditionExpr) => conditionToTLA(e),
-    );
+    const parts = (expr as { all: PolicyConditionExpr[] }).all.map((e: PolicyConditionExpr) => conditionToTLA(e));
     return `(${parts.join(" /\\ ")})`;
   }
   if ("any" in expr) {
-    const parts = (expr as { any: PolicyConditionExpr[] }).any.map(
-      (e: PolicyConditionExpr) => conditionToTLA(e),
-    );
+    const parts = (expr as { any: PolicyConditionExpr[] }).any.map((e: PolicyConditionExpr) => conditionToTLA(e));
     return `(${parts.join(" \\/ ")})`;
   }
   if ("not" in expr) {
@@ -425,11 +362,7 @@ export function conditionToTLA(expr: PolicyConditionExpr): string {
   return "TRUE";
 }
 
-export function leafToTLA(
-  varName: string,
-  operator: ConditionOperator,
-  value: unknown,
-): string {
+export function leafToTLA(varName: string, operator: ConditionOperator, value: unknown): string {
   switch (operator) {
     case "equals":
       return `${varName} = ${tlaValue(value)}`;

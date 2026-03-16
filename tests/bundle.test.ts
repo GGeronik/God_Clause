@@ -4,13 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import type { TrustContract } from "../src/types";
-import {
-  packBundle,
-  signBundle,
-  verifyBundle,
-  unpackBundle,
-  BundleWatcher,
-} from "../src/contracts/bundle";
+import { packBundle, signBundle, verifyBundle, unpackBundle, BundleWatcher } from "../src/contracts/bundle";
 
 // ─── Test key pair (RSA 2048) ────────────────────────────────────────
 
@@ -50,9 +44,7 @@ function makeContract(name = "test-contract"): TrustContract {
         id: "R-001",
         description: "Allow generate when output.ok is true",
         action: "generate",
-        conditions: [
-          { field: "output.ok", operator: "equals", value: true },
-        ],
+        conditions: [{ field: "output.ok", operator: "equals", value: true }],
         on_violation: "block",
       },
     ],
@@ -65,9 +57,7 @@ describe("packBundle", () => {
   it("creates a bundle with correct format_version and bundle_id", () => {
     const bundle = packBundle([makeContract()]);
     expect(bundle.format_version).toBe("1.0");
-    expect(bundle.bundle_id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(bundle.bundle_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(bundle.created_at).toBeTruthy();
   });
 
@@ -124,9 +114,7 @@ describe("verifyBundle", () => {
     const signed = signBundle(bundle, { privateKey, keyId: "key-1" });
 
     // Tamper with the payload
-    const decoded = JSON.parse(
-      Buffer.from(signed.envelope.payload, "base64").toString("utf-8"),
-    );
+    const decoded = JSON.parse(Buffer.from(signed.envelope.payload, "base64").toString("utf-8"));
     decoded.bundle_id = "tampered-id";
     signed.envelope.payload = Buffer.from(JSON.stringify(decoded)).toString("base64");
 
@@ -161,9 +149,7 @@ describe("unpackBundle", () => {
     const bundle = packBundle([makeContract()]);
     const signed = signBundle(bundle, { privateKey, keyId: "key-1" });
 
-    expect(() => unpackBundle(signed, { publicKey: wrongPublicKey })).toThrow(
-      "Bundle signature verification failed",
-    );
+    expect(() => unpackBundle(signed, { publicKey: wrongPublicKey })).toThrow("Bundle signature verification failed");
   });
 });
 

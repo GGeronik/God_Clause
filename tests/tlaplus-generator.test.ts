@@ -35,18 +35,14 @@ function makeContract(overrides?: Partial<TrustContract>): TrustContract {
         id: "R-001",
         description: "No PII in output",
         action: "*",
-        conditions: [
-          { field: "output.contains_pii", operator: "equals", value: false },
-        ],
+        conditions: [{ field: "output.contains_pii", operator: "equals", value: false }],
         on_violation: "block",
       },
       {
         id: "R-002",
         description: "Confidence threshold",
         action: "recommend",
-        conditions: [
-          { field: "output.confidence", operator: "greater_than", value: 0.8 },
-        ],
+        conditions: [{ field: "output.confidence", operator: "greater_than", value: 0.8 }],
         on_violation: "warn",
       },
     ],
@@ -61,18 +57,14 @@ function makeContractWithModify(): TrustContract {
         id: "R-001",
         description: "Block PII",
         action: "*",
-        conditions: [
-          { field: "output.contains_pii", operator: "equals", value: false },
-        ],
+        conditions: [{ field: "output.contains_pii", operator: "equals", value: false }],
         on_violation: "block",
       },
       {
         id: "R-003",
         description: "Redact sensitive",
         action: "generate",
-        conditions: [
-          { field: "output.has_sensitive", operator: "equals", value: false },
-        ],
+        conditions: [{ field: "output.has_sensitive", operator: "equals", value: false }],
         on_violation: "modify",
         obligations: [
           {
@@ -205,9 +197,7 @@ describe("TLAPlusGenerator", () => {
             id: "R-W",
             description: "Warn only",
             action: "*",
-            conditions: [
-              { field: "output.ok", operator: "equals", value: true },
-            ],
+            conditions: [{ field: "output.ok", operator: "equals", value: true }],
             on_violation: "warn",
           },
         ],
@@ -282,9 +272,7 @@ describe("TLAPlusGenerator", () => {
       expect(sanitizeModuleName("My Contract!")).toBe("My_Contract_");
       expect(sanitizeModuleName("hello-world.v2")).toBe("hello_world_v2");
       expect(sanitizeModuleName("simple")).toBe("simple");
-      expect(sanitizeModuleName("has spaces & symbols")).toBe(
-        "has_spaces___symbols",
-      );
+      expect(sanitizeModuleName("has spaces & symbols")).toBe("has_spaces___symbols");
     });
   });
 

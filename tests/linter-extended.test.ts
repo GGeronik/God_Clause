@@ -70,9 +70,7 @@ describe("Extended Linter Rules", () => {
   describe("missing-deny-for-hazard", () => {
     it("warns when hazard class has no block rule", () => {
       const contract = makeContract({
-        rules: [
-          makeRule({ id: "R-1", hazard_class: "pii_exposure", on_violation: "warn" }),
-        ],
+        rules: [makeRule({ id: "R-1", hazard_class: "pii_exposure", on_violation: "warn" })],
       });
 
       const results = lintContract(contract);
@@ -83,9 +81,7 @@ describe("Extended Linter Rules", () => {
 
     it("does not warn when hazard class has a block rule", () => {
       const contract = makeContract({
-        rules: [
-          makeRule({ id: "R-1", hazard_class: "pii_exposure", on_violation: "block" }),
-        ],
+        rules: [makeRule({ id: "R-1", hazard_class: "pii_exposure", on_violation: "block" })],
       });
 
       const results = lintContract(contract);

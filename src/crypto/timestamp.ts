@@ -43,10 +43,7 @@ export interface TimestampRequestOptions {
  * This implementation creates a timestamp request structure and calls the TSA.
  * For production use, consider using a library like `rfc3161-client`.
  */
-export async function requestTimestamp(
-  merkleRoot: string,
-  opts: TimestampRequestOptions,
-): Promise<TimestampToken> {
+export async function requestTimestamp(merkleRoot: string, opts: TimestampRequestOptions): Promise<TimestampToken> {
   const hash = createHash(opts.hashAlgorithm ?? "sha256")
     .update(merkleRoot)
     .digest();
@@ -84,10 +81,7 @@ export async function requestTimestamp(
  * Verify that a timestamp token corresponds to the expected Merkle root.
  * This checks the token's internal consistency (hash match).
  */
-export function verifyTimestampConsistency(
-  token: TimestampToken,
-  expectedMerkleRoot: string,
-): boolean {
+export function verifyTimestampConsistency(token: TimestampToken, expectedMerkleRoot: string): boolean {
   if (token.merkle_root !== expectedMerkleRoot) return false;
 
   const tstBytes = Buffer.from(token.tst_base64, "base64");
@@ -102,10 +96,7 @@ export function verifyTimestampConsistency(
  * Less authoritative than RFC 3161 but still provides a signed
  * timestamp reference for the Merkle root.
  */
-export function createLocalTimestamp(
-  merkleRoot: string,
-  signingKey?: string,
-): TimestampToken {
+export function createLocalTimestamp(merkleRoot: string, signingKey?: string): TimestampToken {
   const timestamp = new Date().toISOString();
   const payload = `${merkleRoot}:${timestamp}`;
   const hash = createHash("sha256").update(payload).digest("hex");
@@ -160,8 +151,5 @@ function derWrap(tag: number, content: Buffer): Buffer {
     lenBytes.unshift(temp & 0xff);
     temp >>= 8;
   }
-  return Buffer.concat([
-    Buffer.from([tag, 0x80 | lenBytes.length, ...lenBytes]),
-    content,
-  ]);
+  return Buffer.concat([Buffer.from([tag, 0x80 | lenBytes.length, ...lenBytes]), content]);
 }

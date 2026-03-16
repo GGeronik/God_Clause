@@ -51,9 +51,17 @@ export class FileAuditSink implements AuditSink {
       if (existsSync(from)) {
         if (i === this.maxFiles) {
           // Delete the oldest file
-          try { unlinkSync(to); } catch { /* ignore */ }
+          try {
+            unlinkSync(to);
+          } catch {
+            /* ignore */
+          }
         }
-        try { renameSync(from, to); } catch { /* ignore */ }
+        try {
+          renameSync(from, to);
+        } catch {
+          /* ignore */
+        }
       }
     }
   }

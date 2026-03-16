@@ -119,15 +119,13 @@ describe("P2T Generator", () => {
   });
 
   it("throws on unknown template", () => {
-    expect(() =>
-      gen.generate({ template: "nonexistent", params: {} }),
-    ).toThrow('Unknown template: "nonexistent"');
+    expect(() => gen.generate({ template: "nonexistent", params: {} })).toThrow('Unknown template: "nonexistent"');
   });
 
   it("throws on missing required parameter", () => {
-    expect(() =>
-      gen.generate({ template: "rate-limiting", params: {} }),
-    ).toThrow('Missing required parameter "max_requests"');
+    expect(() => gen.generate({ template: "rate-limiting", params: {} })).toThrow(
+      'Missing required parameter "max_requests"',
+    );
   });
 
   it("applies default parameter values", () => {

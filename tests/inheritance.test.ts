@@ -187,9 +187,7 @@ describe("Contract Inheritance", () => {
     const registry = new ContractRegistry();
     const child = parseContract(childContract);
 
-    expect(() => resolveInheritance(child, registry)).toThrow(
-      'Parent contract "Base Safety" not found',
-    );
+    expect(() => resolveInheritance(child, registry)).toThrow('Parent contract "Base Safety" not found');
   });
 
   it("detects circular inheritance", () => {

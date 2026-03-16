@@ -34,9 +34,7 @@ describe("WasmPolicySandbox", () => {
 
     it("loadModule rejects invalid bytes", () => {
       const sandbox = new WasmPolicySandbox();
-      expect(() => sandbox.loadModule(new Uint8Array([0x00, 0x01]))).toThrow(
-        /Failed to compile WASM module/,
-      );
+      expect(() => sandbox.loadModule(new Uint8Array([0x00, 0x01]))).toThrow(/Failed to compile WASM module/);
     });
 
     it("unloadModule removes the module", () => {
@@ -49,9 +47,7 @@ describe("WasmPolicySandbox", () => {
 
     it("unloadModule on unknown ID throws", () => {
       const sandbox = new WasmPolicySandbox();
-      expect(() => sandbox.unloadModule("nonexistent")).toThrow(
-        /not found/,
-      );
+      expect(() => sandbox.unloadModule("nonexistent")).toThrow(/not found/);
     });
 
     it("getModuleCount tracks loaded modules", () => {
@@ -89,9 +85,7 @@ describe("WasmPolicySandbox", () => {
 
     it("evaluate with unknown moduleId throws", async () => {
       const sandbox = new WasmPolicySandbox();
-      await expect(sandbox.evaluate("nonexistent", makeContext())).rejects.toThrow(
-        /not found/,
-      );
+      await expect(sandbox.evaluate("nonexistent", makeContext())).rejects.toThrow(/not found/);
     });
   });
 
@@ -107,9 +101,7 @@ describe("WasmPolicySandbox", () => {
 
     it("executeObligation with unknown moduleId throws", async () => {
       const sandbox = new WasmPolicySandbox();
-      await expect(
-        sandbox.executeObligation("nonexistent", {}),
-      ).rejects.toThrow(/not found/);
+      await expect(sandbox.executeObligation("nonexistent", {})).rejects.toThrow(/not found/);
     });
   });
 
@@ -120,9 +112,7 @@ describe("WasmPolicySandbox", () => {
       const sandbox = new WasmPolicySandbox({ maxModules: 2 });
       sandbox.loadModule(createMinimalWasmModule());
       sandbox.loadModule(createMinimalWasmModule());
-      expect(() => sandbox.loadModule(createMinimalWasmModule())).toThrow(
-        /Maximum module limit reached/,
-      );
+      expect(() => sandbox.loadModule(createMinimalWasmModule())).toThrow(/Maximum module limit reached/);
     });
 
     it("memory limit: module cannot exceed maxMemoryPages", () => {
@@ -130,9 +120,7 @@ describe("WasmPolicySandbox", () => {
       const sandbox = new WasmPolicySandbox({ maxMemoryPages: 2 });
       const id = sandbox.loadModule(createMemoryHogModule(100));
       // The module loads fine, but grow_memory should fail (return -1)
-      const growFn = (
-        sandbox as any
-      ).modules.get(id).instance.exports.grow_memory as () => number;
+      const growFn = (sandbox as any).modules.get(id).instance.exports.grow_memory as () => number;
       const growResult = growFn();
       // -1 means memory.grow failed due to limits
       expect(growResult).toBe(-1);

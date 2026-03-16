@@ -54,10 +54,7 @@ describe("SandboxedEvaluator", () => {
     });
 
     it("handles string operations", () => {
-      const result = ev.evaluate(
-        'return ctx.input.label === "hello";',
-        makeCtx(),
-      );
+      const result = ev.evaluate('return ctx.input.label === "hello";', makeCtx());
       expect(result.passed).toBe(true);
     });
   });
@@ -74,10 +71,7 @@ describe("SandboxedEvaluator", () => {
 
     it("allows finite computation within timeout", () => {
       const ev = new SandboxedEvaluator({ timeoutMs: 1000 });
-      const result = ev.evaluate(
-        "let s = 0; for (let i = 0; i < 1000; i++) s += i; return s > 0;",
-        makeCtx(),
-      );
+      const result = ev.evaluate("let s = 0; for (let i = 0; i < 1000; i++) s += i; return s > 0;", makeCtx());
       expect(result.passed).toBe(true);
     });
   });
@@ -87,36 +81,24 @@ describe("SandboxedEvaluator", () => {
     const ev = new SandboxedEvaluator();
 
     it("process is not accessible", () => {
-      const result = ev.evaluate(
-        'return typeof process === "undefined";',
-        makeCtx(),
-      );
+      const result = ev.evaluate('return typeof process === "undefined";', makeCtx());
       expect(result.passed).toBe(true);
     });
 
     it("require is not accessible", () => {
-      const result = ev.evaluate(
-        'return typeof require === "undefined";',
-        makeCtx(),
-      );
+      const result = ev.evaluate('return typeof require === "undefined";', makeCtx());
       expect(result.passed).toBe(true);
     });
 
     it("fs module is not accessible", () => {
       // Attempting to use require or any fs reference should fail
-      const result = ev.evaluate(
-        'return typeof fs === "undefined";',
-        makeCtx(),
-      );
+      const result = ev.evaluate('return typeof fs === "undefined";', makeCtx());
       expect(result.passed).toBe(true);
     });
 
     it("globalThis is restricted (no process, require, etc.)", () => {
       // In the sandbox, globalThis exists but doesn't have dangerous properties
-      const result = ev.evaluate(
-        'return typeof globalThis.process === "undefined";',
-        makeCtx(),
-      );
+      const result = ev.evaluate('return typeof globalThis.process === "undefined";', makeCtx());
       expect(result.passed).toBe(true);
     });
   });
@@ -137,10 +119,7 @@ describe("SandboxedEvaluator", () => {
 
     it("original context is not modified after evaluation", () => {
       const ctx = makeCtx();
-      ev.evaluate(
-        "try { ctx.input.safe = false; } catch(e) {}",
-        ctx,
-      );
+      ev.evaluate("try { ctx.input.safe = false; } catch(e) {}", ctx);
       // The original context must be untouched (structuredClone was used)
       expect(ctx.input.safe).toBe(true);
     });
@@ -152,10 +131,7 @@ describe("SandboxedEvaluator", () => {
       const ev = new SandboxedEvaluator({
         codeGeneration: { strings: false, wasm: false },
       });
-      const result = ev.evaluate(
-        'return eval("1 + 1") === 2;',
-        makeCtx(),
-      );
+      const result = ev.evaluate('return eval("1 + 1") === 2;', makeCtx());
       expect(result.passed).toBe(false);
       expect(result.violations[0].field).toBe("(sandbox_error)");
     });
@@ -164,10 +140,7 @@ describe("SandboxedEvaluator", () => {
       const ev = new SandboxedEvaluator({
         codeGeneration: { strings: false, wasm: false },
       });
-      const result = ev.evaluate(
-        'var f = new Function("return 42"); return f() === 42;',
-        makeCtx(),
-      );
+      const result = ev.evaluate('var f = new Function("return 42"); return f() === 42;', makeCtx());
       expect(result.passed).toBe(false);
       expect(result.violations[0].field).toBe("(sandbox_error)");
     });
@@ -189,9 +162,7 @@ describe("SandboxedEvaluator", () => {
       id: "r2",
       description: "Score must be low",
       action: "generate",
-      conditions: [
-        { field: "input.score", operator: "less_than", value: 50 },
-      ],
+      conditions: [{ field: "input.score", operator: "less_than", value: 50 }],
       on_violation: "warn",
     };
 
@@ -249,10 +220,7 @@ describe("SandboxedEvaluator", () => {
 
     it("includes extras passed to createRestrictedContext", () => {
       // We test indirectly: evaluate uses createRestrictedContext with ctx as extra
-      const result = ev.evaluate(
-        "return ctx.action === 'generate';",
-        makeCtx(),
-      );
+      const result = ev.evaluate("return ctx.action === 'generate';", makeCtx());
       expect(result.passed).toBe(true);
     });
 

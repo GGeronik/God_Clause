@@ -1,10 +1,4 @@
-import type {
-  MCPPermission,
-  MCPToolCall,
-  MCPAuthResult,
-  PolicyConditionExpr,
-  PolicyContext,
-} from "../types";
+import type { MCPPermission, MCPToolCall, MCPAuthResult, PolicyConditionExpr, PolicyContext } from "../types";
 import { evaluateConditionExpr } from "./evaluator";
 import type { StateStore } from "./state-store";
 
@@ -82,10 +76,7 @@ export class MCPRouter {
    * @param context - Runtime policy context for condition evaluation.
    * @returns Authorization result (fail-closed: denied if no rule matches).
    */
-  async authorize(
-    call: MCPToolCall,
-    context: PolicyContext,
-  ): Promise<MCPAuthResult> {
+  async authorize(call: MCPToolCall, context: PolicyContext): Promise<MCPAuthResult> {
     for (const perm of this.permissions) {
       if (!globMatch(perm.tool_pattern, call.tool_name)) {
         continue;
@@ -100,18 +91,11 @@ export class MCPRouter {
       }
 
       // Check session rate limit
-      if (
-        perm.max_calls_per_session != null &&
-        perm.allowed &&
-        this.stateStore
-      ) {
+      if (perm.max_calls_per_session != null && perm.allowed && this.stateStore) {
         const key = `mcp:${call.tool_name}:${call.session_id}`;
         // Use a large window (effectively per-session, not time-windowed)
         const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
-        const count = await this.stateStore.recordAndCount(
-          key,
-          SESSION_WINDOW_MS,
-        );
+        const count = await this.stateStore.recordAndCount(key, SESSION_WINDOW_MS);
         if (count > perm.max_calls_per_session) {
           return {
             allowed: false,
@@ -155,10 +139,7 @@ export class MCPRouter {
    * Evaluate an array of conditions (implicitly AND-ed).
    * Uses the synchronous evaluateConditionExpr from the evaluator.
    */
-  private evaluateConditions(
-    conditions: PolicyConditionExpr[],
-    context: PolicyContext,
-  ): boolean {
+  private evaluateConditions(conditions: PolicyConditionExpr[], context: PolicyContext): boolean {
     for (const cond of conditions) {
       try {
         const result = evaluateConditionExpr(cond, context);

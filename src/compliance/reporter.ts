@@ -54,9 +54,7 @@ export function generateComplianceReport(
   }
 
   const controlDefs = getControlDefinitions(framework);
-  const controls = controlDefs.map((def) =>
-    evaluateControl(def, contracts, filteredEntries),
-  );
+  const controls = controlDefs.map((def) => evaluateControl(def, contracts, filteredEntries));
 
   const statuses = controls.map((c) => c.status);
   let overall: ControlStatus = "satisfied";
@@ -68,9 +66,8 @@ export function generateComplianceReport(
   return {
     framework,
     generated_at: new Date().toISOString(),
-    contract_summary: contractNames.length > 0
-      ? `Evaluated contracts: ${contractNames.join(", ")}`
-      : "No contracts loaded",
+    contract_summary:
+      contractNames.length > 0 ? `Evaluated contracts: ${contractNames.join(", ")}` : "No contracts loaded",
     contracts_evaluated: contracts.length,
     audit_entries_evaluated: filteredEntries.length,
     controls,
@@ -81,7 +78,10 @@ export function generateComplianceReport(
 interface ControlDefinition {
   control_id: string;
   description: string;
-  check: (contracts: ReadonlyArray<TrustContract>, entries: AuditEntry[]) => { status: ControlStatus; evidence: string[] };
+  check: (
+    contracts: ReadonlyArray<TrustContract>,
+    entries: AuditEntry[],
+  ) => { status: ControlStatus; evidence: string[] };
 }
 
 function evaluateControl(
@@ -166,9 +166,7 @@ function euAiActControls(): ControlDefinition[] {
       control_id: "EU-AI-ACT-Art13",
       description: "Transparency — understandable documentation for deployers",
       check: (contracts) => {
-        const hasDescriptions = contracts.every((c) =>
-          c.metadata.description && c.rules.every((r) => r.description),
-        );
+        const hasDescriptions = contracts.every((c) => c.metadata.description && c.rules.every((r) => r.description));
         return {
           status: hasDescriptions ? "satisfied" : "partial",
           evidence: ["Trust contracts provide human-readable rule descriptions and metadata"],
@@ -180,11 +178,7 @@ function euAiActControls(): ControlDefinition[] {
       description: "Human oversight measures",
       check: (contracts) => {
         const hasHumanRules = contracts.some((c) =>
-          c.rules.some((r) =>
-            r.conditions.some((cond) =>
-              "field" in cond && cond.field.includes("human"),
-            ),
-          ),
+          c.rules.some((r) => r.conditions.some((cond) => "field" in cond && cond.field.includes("human"))),
         );
         return {
           status: hasHumanRules ? "satisfied" : "partial",
@@ -296,9 +290,7 @@ function soc2Controls(): ControlDefinition[] {
       description: "Logical access controls",
       check: (contracts) => {
         const hasRoleChecks = contracts.some((c) =>
-          c.rules.some((r) =>
-            r.conditions.some((cond) => "field" in cond && cond.field.includes("roles")),
-          ),
+          c.rules.some((r) => r.conditions.some((cond) => "field" in cond && cond.field.includes("roles"))),
         );
         return {
           status: hasRoleChecks ? "satisfied" : "not_addressed",
@@ -375,7 +367,9 @@ function gdprControls(): ControlDefinition[] {
           status: hasHmac ? "satisfied" : "partial",
           evidence: [
             "Rate limiting protects against abuse",
-            hasHmac ? "HMAC-SHA256 audit signing ensures integrity" : "Configure HMAC for stronger integrity guarantees",
+            hasHmac
+              ? "HMAC-SHA256 audit signing ensures integrity"
+              : "Configure HMAC for stronger integrity guarantees",
           ],
         };
       },
@@ -393,9 +387,7 @@ function hipaaControls(): ControlDefinition[] {
       check: (contracts) => {
         const hasPhiRules = contracts.some((c) =>
           c.rules.some((r) =>
-            r.conditions.some((cond) =>
-              "field" in cond && (cond.field.includes("phi") || cond.field.includes("PHI")),
-            ),
+            r.conditions.some((cond) => "field" in cond && (cond.field.includes("phi") || cond.field.includes("PHI"))),
           ),
         );
         return {
@@ -423,7 +415,9 @@ function hipaaControls(): ControlDefinition[] {
           status: hasHmac ? "satisfied" : "partial",
           evidence: [
             "SHA-256 hash chain provides tamper evidence",
-            hasHmac ? "HMAC signing prevents unauthorized modification" : "Configure HMAC for full integrity protection",
+            hasHmac
+              ? "HMAC signing prevents unauthorized modification"
+              : "Configure HMAC for full integrity protection",
           ],
         };
       },

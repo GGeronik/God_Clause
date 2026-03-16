@@ -19,9 +19,7 @@ export class HumanOverrideManager {
    *
    * @throws Error if the signature is invalid.
    */
-  async recordOverride(
-    input: Omit<HumanOverride, "override_id">,
-  ): Promise<HumanOverride> {
+  async recordOverride(input: Omit<HumanOverride, "override_id">): Promise<HumanOverride> {
     // Build a temporary full object with a placeholder ID for signature verification
     const tempOverride: HumanOverride = { ...input, override_id: "" };
 
@@ -133,10 +131,7 @@ export function generateEd25519KeyPair(): {
  * @param privateKeyHex - Hex-encoded raw 32-byte Ed25519 private key.
  * @returns Hex-encoded signature.
  */
-export function signOverridePayload(
-  payload: string,
-  privateKeyHex: string,
-): string {
+export function signOverridePayload(payload: string, privateKeyHex: string): string {
   const privateKeyRaw = Buffer.from(privateKeyHex, "hex");
   const derBytes = Buffer.concat([ED25519_PKCS8_PREFIX, privateKeyRaw]);
   const keyObject = crypto.createPrivateKey({

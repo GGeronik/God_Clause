@@ -54,9 +54,11 @@ describe("Three-Valued Decisions with Obligations", () => {
   it("returns permit outcome when all conditions pass", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(modifyContract);
-    const decision = await gov.evaluate(makeCtx({
-      output: { contains_pii: false, toxic: false },
-    }));
+    const decision = await gov.evaluate(
+      makeCtx({
+        output: { contains_pii: false, toxic: false },
+      }),
+    );
     expect(decision.outcome).toBe("permit");
     expect(decision.allowed).toBe(true);
     expect(decision.obligations).toHaveLength(0);
@@ -66,9 +68,11 @@ describe("Three-Valued Decisions with Obligations", () => {
   it("returns modify outcome with obligations when modify rule fails", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(modifyContract);
-    const decision = await gov.evaluate(makeCtx({
-      output: { contains_pii: true, toxic: false },
-    }));
+    const decision = await gov.evaluate(
+      makeCtx({
+        output: { contains_pii: true, toxic: false },
+      }),
+    );
     expect(decision.outcome).toBe("modify");
     expect(decision.allowed).toBe(true);
     expect(decision.obligations).toHaveLength(2);
@@ -81,9 +85,11 @@ describe("Three-Valued Decisions with Obligations", () => {
   it("block overrides modify — returns deny", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(modifyContract);
-    const decision = await gov.evaluate(makeCtx({
-      output: { contains_pii: true, toxic: true },
-    }));
+    const decision = await gov.evaluate(
+      makeCtx({
+        output: { contains_pii: true, toxic: true },
+      }),
+    );
     expect(decision.outcome).toBe("deny");
     expect(decision.allowed).toBe(false);
     expect(decision.blocks).toHaveLength(1);
@@ -94,9 +100,11 @@ describe("Three-Valued Decisions with Obligations", () => {
   it("records obligations in audit entry", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(modifyContract);
-    await gov.evaluate(makeCtx({
-      output: { contains_pii: true, toxic: false },
-    }));
+    await gov.evaluate(
+      makeCtx({
+        output: { contains_pii: true, toxic: false },
+      }),
+    );
     const entries = gov.getAuditEntries();
     expect(entries[0].outcome).toBe("modify");
     expect(entries[0].obligations).toContain("OBL-001");
@@ -114,9 +122,11 @@ describe("Three-Valued Decisions with Obligations", () => {
   it("modifications array is populated on modify outcome", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(modifyContract);
-    const decision = await gov.evaluate(makeCtx({
-      output: { contains_pii: true, toxic: false },
-    }));
+    const decision = await gov.evaluate(
+      makeCtx({
+        output: { contains_pii: true, toxic: false },
+      }),
+    );
     expect(decision.modifications).toHaveLength(1);
     expect(decision.modifications[0].rule_id).toBe("MOD-001");
   });

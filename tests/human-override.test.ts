@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  HumanOverrideManager,
-  generateEd25519KeyPair,
-  signOverridePayload,
-} from "../src/engine/human-override.js";
+import { HumanOverrideManager, generateEd25519KeyPair, signOverridePayload } from "../src/engine/human-override.js";
 
 describe("HumanOverrideManager", () => {
   let manager: HumanOverrideManager;
@@ -15,13 +11,15 @@ describe("HumanOverrideManager", () => {
   });
 
   /** Helper to create a valid signed override input. */
-  function makeSignedInput(overrides?: Partial<{
-    decision_id: string;
-    action: "approve" | "reject" | "escalate";
-    reason: string;
-    overrider_id: string;
-    timestamp: string;
-  }>) {
+  function makeSignedInput(
+    overrides?: Partial<{
+      decision_id: string;
+      action: "approve" | "reject" | "escalate";
+      reason: string;
+      overrider_id: string;
+      timestamp: string;
+    }>,
+  ) {
     const params = {
       decision_id: overrides?.decision_id ?? "dec-001",
       action: overrides?.action ?? ("approve" as const),
@@ -106,9 +104,7 @@ describe("HumanOverrideManager", () => {
   it("throws on recordOverride with invalid signature", async () => {
     const input = makeSignedInput();
     input.signature = "ff".repeat(64);
-    await expect(manager.recordOverride(input)).rejects.toThrow(
-      "Invalid override signature",
-    );
+    await expect(manager.recordOverride(input)).rejects.toThrow("Invalid override signature");
   });
 
   // ── getOverridesForDecision filters correctly ──────────────────────

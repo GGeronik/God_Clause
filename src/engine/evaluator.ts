@@ -54,24 +54,18 @@ function drillDown(obj: unknown, segments: string[]): unknown {
   return current;
 }
 
-export function evaluateOperator(
-  operator: ConditionOperator,
-  actual: unknown,
-  expected: unknown,
-): boolean {
+export function evaluateOperator(operator: ConditionOperator, actual: unknown, expected: unknown): boolean {
   switch (operator) {
     case "equals":
       return actual === expected;
     case "not_equals":
       return actual !== expected;
     case "contains":
-      if (typeof actual === "string" && typeof expected === "string")
-        return actual.includes(expected);
+      if (typeof actual === "string" && typeof expected === "string") return actual.includes(expected);
       if (Array.isArray(actual)) return actual.includes(expected);
       return false;
     case "not_contains":
-      if (typeof actual === "string" && typeof expected === "string")
-        return !actual.includes(expected);
+      if (typeof actual === "string" && typeof expected === "string") return !actual.includes(expected);
       if (Array.isArray(actual)) return !actual.includes(expected);
       return true;
     case "greater_than":
@@ -99,10 +93,7 @@ export function evaluateOperator(
   }
 }
 
-export function actionMatches(
-  ruleAction: ActionVerb | ActionVerb[],
-  contextAction: ActionVerb,
-): boolean {
+export function actionMatches(ruleAction: ActionVerb | ActionVerb[], contextAction: ActionVerb): boolean {
   const actions = Array.isArray(ruleAction) ? ruleAction : [ruleAction];
   return actions.includes("*") || actions.includes(contextAction);
 }
@@ -136,10 +127,7 @@ export interface ConditionResult {
  * Recursively evaluate a condition expression (leaf, all, any, not).
  * Synchronous version — throws on rate_limit conditions.
  */
-export function evaluateConditionExpr(
-  expr: PolicyConditionExpr,
-  ctx: PolicyContext,
-): ConditionResult {
+export function evaluateConditionExpr(expr: PolicyConditionExpr, ctx: PolicyContext): ConditionResult {
   if (isLeaf(expr)) {
     if (expr.operator === "rate_limit") {
       throw new Error("rate_limit conditions require async evaluation. Use evaluateRule() instead.");
@@ -151,12 +139,14 @@ export function evaluateConditionExpr(
     }
     return {
       passed: false,
-      violations: [{
-        field: expr.field,
-        operator: expr.operator,
-        expected: expr.value,
-        actual,
-      }],
+      violations: [
+        {
+          field: expr.field,
+          operator: expr.operator,
+          expected: expr.value,
+          actual,
+        },
+      ],
     };
   }
 
@@ -196,12 +186,14 @@ export function evaluateConditionExpr(
     // Child passed → NOT fails, synthesize a violation
     return {
       passed: false,
-      violations: [{
-        field: "(not)",
-        operator: "not_equals" as ConditionOperator,
-        expected: "condition to fail",
-        actual: "condition passed",
-      }],
+      violations: [
+        {
+          field: "(not)",
+          operator: "not_equals" as ConditionOperator,
+          expected: "condition to fail",
+          actual: "condition passed",
+        },
+      ],
     };
   }
 
@@ -227,12 +219,14 @@ async function evaluateConditionExprAsync(
     }
     return {
       passed: false,
-      violations: [{
-        field: expr.field,
-        operator: expr.operator,
-        expected: expr.value,
-        actual,
-      }],
+      violations: [
+        {
+          field: expr.field,
+          operator: expr.operator,
+          expected: expr.value,
+          actual,
+        },
+      ],
     };
   }
 
@@ -269,12 +263,14 @@ async function evaluateConditionExprAsync(
     }
     return {
       passed: false,
-      violations: [{
-        field: "(not)",
-        operator: "not_equals" as ConditionOperator,
-        expected: "condition to fail",
-        actual: "condition passed",
-      }],
+      violations: [
+        {
+          field: "(not)",
+          operator: "not_equals" as ConditionOperator,
+          expected: "condition to fail",
+          actual: "condition passed",
+        },
+      ],
     };
   }
 
@@ -290,7 +286,9 @@ async function evaluateRateLimit(
   evalCtx: EvaluatorContext,
 ): Promise<ConditionResult> {
   if (!evalCtx.stateStore) {
-    throw new Error("rate_limit conditions require a StateStore. Pass one via GodClause options or PolicyEngine.setStateStore().");
+    throw new Error(
+      "rate_limit conditions require a StateStore. Pass one via GodClause options or PolicyEngine.setStateStore().",
+    );
   }
 
   const value = expr.value as RateLimitValue;
@@ -305,12 +303,14 @@ async function evaluateRateLimit(
 
   return {
     passed: false,
-    violations: [{
-      field: expr.field,
-      operator: "rate_limit",
-      expected: value,
-      actual: count,
-    }],
+    violations: [
+      {
+        field: expr.field,
+        operator: "rate_limit",
+        expected: value,
+        actual: count,
+      },
+    ],
   };
 }
 

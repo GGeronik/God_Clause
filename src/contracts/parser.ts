@@ -29,21 +29,14 @@ export function parseContract(source: string): TrustContract {
     try {
       raw = JSON.parse(source);
     } catch {
-      throw new ContractParseError("Source is neither valid YAML nor JSON", [
-        "Failed to parse as YAML or JSON",
-      ]);
+      throw new ContractParseError("Source is neither valid YAML nor JSON", ["Failed to parse as YAML or JSON"]);
     }
   }
 
   const valid = validate(raw);
   if (!valid) {
-    const messages = (validate.errors ?? []).map(
-      (e) => `${e.instancePath || "/"}: ${e.message}`,
-    );
-    throw new ContractParseError(
-      `Trust contract validation failed with ${messages.length} error(s)`,
-      messages,
-    );
+    const messages = (validate.errors ?? []).map((e) => `${e.instancePath || "/"}: ${e.message}`);
+    throw new ContractParseError(`Trust contract validation failed with ${messages.length} error(s)`, messages);
   }
 
   return raw as TrustContract;
@@ -77,9 +70,7 @@ export function summarizeContract(contract: TrustContract): string {
   ];
 
   for (const rule of rules) {
-    const actions = Array.isArray(rule.action)
-      ? rule.action.join(", ")
-      : rule.action;
+    const actions = Array.isArray(rule.action) ? rule.action.join(", ") : rule.action;
     lines.push(`  [${rule.on_violation.toUpperCase()}] ${rule.id}: ${rule.description}`);
     lines.push(`    Actions: ${actions}`);
     for (const cond of rule.conditions) {
@@ -93,11 +84,7 @@ export function summarizeContract(contract: TrustContract): string {
   return lines.join("\n");
 }
 
-function renderCondition(
-  expr: PolicyConditionExpr,
-  lines: string[],
-  indent: number,
-): void {
+function renderCondition(expr: PolicyConditionExpr, lines: string[], indent: number): void {
   const pad = " ".repeat(indent);
 
   if ("field" in expr) {
@@ -150,20 +137,18 @@ export function resolveInheritance(
 
   // Cycle detection
   if (seen.has(contract.metadata.name)) {
-    throw new ContractParseError(
-      `Circular inheritance detected: ${[...seen, contract.metadata.name].join(" -> ")}`,
-      [`Contract "${contract.metadata.name}" creates a circular inheritance chain`],
-    );
+    throw new ContractParseError(`Circular inheritance detected: ${[...seen, contract.metadata.name].join(" -> ")}`, [
+      `Contract "${contract.metadata.name}" creates a circular inheritance chain`,
+    ]);
   }
   seen.add(contract.metadata.name);
 
   // Look up parent
   const parent = registry.getActive(parentName);
   if (!parent) {
-    throw new ContractParseError(
-      `Parent contract "${parentName}" not found in registry`,
-      [`Contract "${contract.metadata.name}" extends "${parentName}" but it is not registered or active`],
-    );
+    throw new ContractParseError(`Parent contract "${parentName}" not found in registry`, [
+      `Contract "${contract.metadata.name}" extends "${parentName}" but it is not registered or active`,
+    ]);
   }
 
   // Recursively resolve parent's own inheritance

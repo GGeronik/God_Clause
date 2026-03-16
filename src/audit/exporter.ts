@@ -5,10 +5,22 @@ import type { AuditEntry } from "../types";
  */
 export function exportAuditCSV(entries: AuditEntry[]): string {
   const headers = [
-    "entry_id", "decision_id", "timestamp", "action", "allowed",
-    "outcome", "contract_name", "contract_version", "user_id",
-    "blocks", "warnings", "obligations", "tenant_id", "trace_id",
-    "policy_sha256", "hash",
+    "entry_id",
+    "decision_id",
+    "timestamp",
+    "action",
+    "allowed",
+    "outcome",
+    "contract_name",
+    "contract_version",
+    "user_id",
+    "blocks",
+    "warnings",
+    "obligations",
+    "tenant_id",
+    "trace_id",
+    "policy_sha256",
+    "hash",
   ];
 
   const rows = entries.map((e) =>
@@ -40,10 +52,7 @@ export function exportAuditCSV(entries: AuditEntry[]): string {
 /**
  * Export audit entries as formatted JSON string.
  */
-export function exportAuditJSON(
-  entries: AuditEntry[],
-  opts?: { pretty?: boolean },
-): string {
+export function exportAuditJSON(entries: AuditEntry[], opts?: { pretty?: boolean }): string {
   return JSON.stringify(entries, null, opts?.pretty ? 2 : undefined);
 }
 
@@ -104,8 +113,7 @@ export function exportAuditSummary(entries: AuditEntry[]): AuditSummary {
     const key = `${e.contract_name} v${e.contract_version}`;
     contractCounts.set(key, (contractCounts.get(key) ?? 0) + 1);
   }
-  const contractBreakdown = [...contractCounts.entries()]
-    .map(([contract, count]) => ({ contract, count }));
+  const contractBreakdown = [...contractCounts.entries()].map(([contract, count]) => ({ contract, count }));
 
   return {
     total_decisions: entries.length,
@@ -118,9 +126,8 @@ export function exportAuditSummary(entries: AuditEntry[]): AuditSummary {
     top_actions: topActions,
     contract_breakdown: contractBreakdown,
     timeline,
-    date_range: entries.length > 0
-      ? { from: entries[0].timestamp, to: entries[entries.length - 1].timestamp }
-      : undefined,
+    date_range:
+      entries.length > 0 ? { from: entries[0].timestamp, to: entries[entries.length - 1].timestamp } : undefined,
   };
 }
 
