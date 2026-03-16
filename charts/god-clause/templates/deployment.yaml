@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-god-clause
+  labels:
+    app.kubernetes.io/name: god-clause
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: god-clause
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: god-clause
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (printf "%s-god-clause" .Release.Name) }}
+      {{- end }}
+      containers:
+        - name: god-clause
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "{{ .Values.server.port }}"
+            - name: LOG_LEVEL
+              value: "{{ .Values.server.logLevel }}"
+            - name: AUDIT_DIR
+              value: "{{ .Values.audit.dir }}"
+            {{- if .Values.server.existingSecret }}
+            - name: HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.server.existingSecret }}
+                  key: {{ .Values.server.existingSecretKey }}
+            {{- else if .Values.server.hmacSecret }}
+            - name: HMAC_SECRET
+              value: "{{ .Values.server.hmacSecret }}"
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /v1/ready
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: audit-data
+              mountPath: {{ .Values.audit.dir }}
+            {{- if .Values.contracts.configMapName }}
+            - name: contracts
+              mountPath: /contracts
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: audit-data
+          {{- if .Values.audit.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-audit
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.contracts.configMapName }}
+        - name: contracts
+          configMap:
+            name: {{ .Values.contracts.configMapName }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

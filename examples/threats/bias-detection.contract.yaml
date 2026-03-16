@@ -1,0 +1,93 @@
+# Bias Detection Contract
+# Drop-in protection: flag demographic bias in scoring/classification outputs.
+#
+# Usage:
+#   gov.loadContractYAML(fs.readFileSync("bias-detection.contract.yaml", "utf-8"));
+#
+# Your application must:
+#   1. Set output.demographic_parity_score (0.0-1.0, 1.0 = perfectly fair)
+#   2. Set input.includes_protected_class boolean
+#   3. Set output.score_variance across demographic groups
+#   4. Set metadata.model_bias_audit_date with last bias audit date
+#
+# Compliance: EU AI Act Art 10, NIST AI RMF MAP-2, EEOC guidelines
+
+schema_version: "1.0"
+metadata:
+  name: Bias Detection
+  version: "1.0.0"
+  author: AI Ethics Team
+  description: >
+    Detect and flag demographic bias in AI classification and scoring
+    outputs. Monitors for disparate impact, protected class usage,
+    and fairness metric violations.
+  effective_date: "2025-01-01"
+  review_date: "2025-04-01"
+  stakeholders: [Ethics Board, Legal, VP Product]
+
+data_governance:
+  allowed_input_classes: [public, internal]
+  allowed_output_classes: [public, internal]
+  retention_period: P365D
+  cross_border_transfer: false
+
+rules:
+  - id: BIAS-001
+    description: Block scoring when protected class data is used as input
+    action: ["classify", "decide", "recommend"]
+    conditions:
+      - field: input.includes_protected_class
+        operator: equals
+        value: false
+    on_violation: block
+    message: "Protected class data detected in inputs for classification/decision — blocked"
+    tags: [bias, fairness, critical]
+
+  - id: BIAS-002
+    description: Flag low demographic parity scores
+    action: ["classify", "decide", "recommend"]
+    conditions:
+      - field: output.demographic_parity_score
+        operator: greater_than
+        value: 0.8
+    on_violation: warn
+    message: "Demographic parity score below 0.8 — potential disparate impact"
+    tags: [bias, fairness, monitoring]
+
+  - id: BIAS-003
+    description: Block severely biased outputs
+    action: ["classify", "decide"]
+    conditions:
+      - field: output.demographic_parity_score
+        operator: greater_than
+        value: 0.5
+    on_violation: block
+    message: "Demographic parity critically low (< 0.5) — output blocked"
+    tags: [bias, fairness, critical]
+
+  - id: BIAS-004
+    description: Require human review for scoring decisions
+    action: ["decide", "recommend"]
+    conditions:
+      - field: output.score_variance
+        operator: less_than
+        value: 0.15
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-BIAS-REVIEW
+        type: require_review
+        params:
+          reason: "High score variance across demographic groups"
+          escalate_to: "fairness_reviewer"
+    tags: [bias, fairness, human-in-the-loop]
+
+  - id: BIAS-005
+    description: Warn if model bias audit is overdue
+    action: "*"
+    conditions:
+      - field: metadata.model_bias_audit_date
+        operator: exists
+        value: true
+    on_violation: warn
+    message: "Model bias audit date not set — ensure regular fairness audits"
+    tags: [bias, monitoring, governance]

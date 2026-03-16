@@ -1,0 +1,96 @@
+# Copyright Protection Contract
+# Drop-in protection: block verbatim reproduction and require attribution.
+#
+# Usage:
+#   gov.loadContractYAML(fs.readFileSync("copyright-protection.contract.yaml", "utf-8"));
+#
+# Your application must:
+#   1. Set output.verbatim_match_score (0.0-1.0) from plagiarism/similarity checker
+#   2. Set output.has_attribution boolean
+#   3. Set output.matched_source_name string if a copyrighted source was matched
+#   4. Set output.code_license if generated code has a detectable license
+#
+# Compliance: DMCA, EU Copyright Directive, EU AI Act Art 53
+
+schema_version: "1.0"
+metadata:
+  name: Copyright Protection
+  version: "1.0.0"
+  author: Legal Team
+  description: >
+    Prevent AI-generated outputs from reproducing copyrighted material
+    verbatim. Require attribution for derived content and flag potential
+    intellectual property violations.
+  effective_date: "2025-01-01"
+  review_date: "2025-07-01"
+  stakeholders: [General Counsel, VP Product, Engineering Lead]
+
+data_governance:
+  allowed_input_classes: [public, internal]
+  allowed_output_classes: [public]
+  retention_period: P365D
+  cross_border_transfer: true
+
+rules:
+  - id: CR-001
+    description: Block high-confidence verbatim reproduction
+    action: generate
+    conditions:
+      - field: output.verbatim_match_score
+        operator: less_than
+        value: 0.85
+    on_violation: block
+    message: "Output closely matches copyrighted material — blocked"
+    tags: [copyright, intellectual-property, critical]
+
+  - id: CR-002
+    description: Warn on moderate similarity to copyrighted sources
+    action: generate
+    conditions:
+      - field: output.verbatim_match_score
+        operator: less_than
+        value: 0.5
+    on_violation: warn
+    message: "Output has moderate similarity to known copyrighted content"
+    tags: [copyright, intellectual-property]
+
+  - id: CR-003
+    description: Require attribution when derived from known sources
+    action: generate
+    conditions:
+      - any:
+          - field: output.matched_source_name
+            operator: not_exists
+            value: true
+          - field: output.has_attribution
+            operator: equals
+            value: true
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-ATTRIBUTION
+        type: append_attribution
+        params:
+          template: "Content may be derived from: {source_name}"
+    tags: [copyright, attribution, transparency]
+
+  - id: CR-004
+    description: Flag GPL-licensed generated code
+    action: generate_code
+    conditions:
+      - field: output.code_license
+        operator: not_in
+        value: ["GPL-2.0", "GPL-3.0", "AGPL-3.0"]
+    on_violation: warn
+    message: "Generated code may contain GPL-licensed content — review before use"
+    tags: [copyright, code-license, legal]
+
+  - id: CR-005
+    description: Block reproduction of known copyrighted songs/poems
+    action: generate
+    conditions:
+      - field: output.categories
+        operator: not_contains
+        value: "copyrighted_creative_work"
+    on_violation: block
+    message: "Reproduction of copyrighted creative work detected — blocked"
+    tags: [copyright, creative-works, critical]

@@ -1,0 +1,89 @@
+schema_version: "1.0"
+metadata:
+  name: Financial Services AI Governance
+  version: "1.0.0"
+  author: Compliance Team
+  description: >
+    Governs AI-assisted financial advice, credit decisions, and trading
+    recommendations. Ensures regulatory compliance with SEC, FINRA, and
+    fair lending requirements.
+  effective_date: "2025-01-01"
+  review_date: "2025-06-30"
+  stakeholders: [CRO, CCO, Head of AI]
+
+data_governance:
+  allowed_input_classes: [pii, financial, internal]
+  allowed_output_classes: [internal, public]
+  retention_period: P7Y
+  cross_border_transfer: false
+
+rules:
+  - id: FIN-001
+    description: Credit decisions require human review
+    action: credit_decision
+    conditions:
+      - field: metadata.human_reviewed
+        operator: equals
+        value: true
+    on_violation: block
+    message: "AI credit decisions must be reviewed by a licensed officer"
+    tags: [fair-lending, ecoa, human-in-loop]
+
+  - id: FIN-002
+    description: No protected class data in credit scoring
+    action: credit_decision
+    conditions:
+      - field: input.uses_protected_class
+        operator: equals
+        value: false
+    on_violation: block
+    message: "Credit models must not use race, gender, religion, or national origin"
+    tags: [fair-lending, ecoa, bias-prevention]
+
+  - id: FIN-003
+    description: Trading recommendations must include risk disclosure
+    action: recommend_trade
+    conditions:
+      - field: output.includes_risk_disclosure
+        operator: equals
+        value: true
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-001
+        type: append_risk_disclosure
+        params:
+          text: "Past performance does not guarantee future results. Investment involves risk of loss."
+    tags: [sec, finra, disclosure]
+
+  - id: FIN-004
+    description: High-value transactions need senior approval
+    action: [approve_transaction, credit_decision]
+    conditions:
+      - field: context.amount
+        operator: less_than
+        value: 1000000
+    on_violation: block
+    message: "Transactions over $1M require senior officer approval"
+    tags: [risk-management, approval]
+
+  - id: FIN-005
+    description: Advisors must have Series 65/66 license
+    action: [recommend_trade, financial_advice]
+    conditions:
+      - field: caller.roles
+        operator: contains
+        value: licensed_advisor
+    on_violation: block
+    tags: [finra, licensing, access-control]
+
+  - id: FIN-006
+    description: Rate limit client interactions
+    action: financial_advice
+    conditions:
+      - field: caller.user_id
+        operator: rate_limit
+        value:
+          max: 100
+          window: PT1H
+    on_violation: warn
+    tags: [abuse-prevention]

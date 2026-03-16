@@ -1,0 +1,111 @@
+# Prompt Injection Defense Contract
+# Drop-in protection against common LLM prompt injection attacks.
+# Covers: ignore-previous, system prompt extraction, jailbreaks, role hijacking.
+#
+# Usage:
+#   gov.loadContractYAML(fs.readFileSync("prompt-injection.contract.yaml", "utf-8"));
+#
+# Your application must:
+#   1. Set input.injection_score from your injection classifier (0.0-1.0)
+#   2. Set input.prompt with the raw user prompt for regex matching
+#
+# Compliance: NIST AI RMF GOVERN-1, EU AI Act Art 15, SOC 2
+
+schema_version: "1.0"
+metadata:
+  name: Prompt Injection Defense
+  version: "1.0.0"
+  author: AI Security Team
+  description: >
+    Block common prompt injection attack patterns including ignore-previous
+    instructions, system prompt extraction attempts, jailbreak phrases,
+    and role hijacking. Uses both classifier scores and regex pattern matching.
+  effective_date: "2025-01-01"
+  review_date: "2025-04-01"
+  stakeholders: [CISO, AI Safety Lead, Engineering]
+
+data_governance:
+  allowed_input_classes: [public, internal]
+  allowed_output_classes: [public]
+  retention_period: P180D
+  cross_border_transfer: false
+
+rules:
+  - id: INJ-001
+    description: Block high-confidence injection attempts
+    action: "*"
+    conditions:
+      - field: input.injection_score
+        operator: less_than
+        value: 0.7
+    on_violation: block
+    message: "Prompt injection detected (confidence > 0.7) — request blocked"
+    tags: [security, prompt-injection, critical]
+
+  - id: INJ-002
+    description: Warn on medium-confidence injection signals
+    action: "*"
+    conditions:
+      - field: input.injection_score
+        operator: less_than
+        value: 0.4
+    on_violation: warn
+    message: "Possible prompt injection attempt detected"
+    tags: [security, prompt-injection]
+
+  - id: INJ-003
+    description: Block "ignore previous instructions" patterns
+    action: "*"
+    conditions:
+      - field: input.prompt
+        operator: not_contains
+        value: "ignore previous"
+    on_violation: block
+    message: "Prompt contains 'ignore previous' injection pattern"
+    tags: [security, prompt-injection]
+
+  - id: INJ-004
+    description: Block system prompt extraction attempts
+    action: "*"
+    conditions:
+      - all:
+          - field: input.prompt
+            operator: not_contains
+            value: "system prompt"
+          - field: input.prompt
+            operator: not_contains
+            value: "initial instructions"
+    on_violation: block
+    message: "System prompt extraction attempt detected"
+    tags: [security, prompt-injection]
+
+  - id: INJ-005
+    description: Block role hijacking attempts
+    action: "*"
+    conditions:
+      - all:
+          - field: input.prompt
+            operator: not_contains
+            value: "you are now"
+          - field: input.prompt
+            operator: not_contains
+            value: "act as"
+          - field: input.prompt
+            operator: not_contains
+            value: "pretend you"
+    on_violation: warn
+    message: "Possible role hijacking attempt"
+    tags: [security, prompt-injection]
+
+  - id: INJ-006
+    description: Rate limit per user to slow injection probing
+    action: "*"
+    conditions:
+      - field: caller.user_id
+        operator: rate_limit
+        value:
+          max: 30
+          window: PT1M
+    on_violation: block
+    message: "Rate limit exceeded — too many requests in 1 minute"
+    tags: [security, rate-limit, abuse-prevention]

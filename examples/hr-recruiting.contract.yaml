@@ -1,0 +1,91 @@
+schema_version: "1.0"
+metadata:
+  name: HR & Recruiting AI Policy
+  version: "1.0.0"
+  author: HR Compliance
+  description: >
+    Governs AI-assisted resume screening, candidate ranking,
+    interview scheduling, and hiring recommendations. Ensures
+    compliance with EEOC, ADA, and emerging AI hiring laws.
+  effective_date: "2025-01-01"
+  review_date: "2025-04-01"
+  stakeholders: [CHRO, General Counsel, DEI Lead]
+
+data_governance:
+  allowed_input_classes: [pii, internal]
+  allowed_output_classes: [internal]
+  retention_period: P3Y
+  cross_border_transfer: false
+
+rules:
+  - id: HR-001
+    description: No protected class data in screening
+    action: [screen_resume, rank_candidate]
+    conditions:
+      - all:
+          - field: input.includes_name
+            operator: equals
+            value: false
+          - field: input.includes_photo
+            operator: equals
+            value: false
+          - field: input.includes_age
+            operator: equals
+            value: false
+    on_violation: block
+    message: "Resume screening must use anonymized data only"
+    tags: [eeoc, bias-prevention, fairness]
+
+  - id: HR-002
+    description: Human review required for rejection decisions
+    action: reject_candidate
+    conditions:
+      - field: metadata.human_reviewed
+        operator: equals
+        value: true
+    on_violation: block
+    message: "AI cannot autonomously reject candidates — human review required"
+    tags: [human-in-loop, eeoc, nyc-local-law-144]
+
+  - id: HR-003
+    description: Bias audit results must be current
+    action: [screen_resume, rank_candidate]
+    conditions:
+      - field: metadata.bias_audit_date
+        operator: exists
+        value: true
+    on_violation: block
+    message: "AI hiring tools require a current bias audit (NYC Local Law 144)"
+    tags: [nyc-local-law-144, bias-audit]
+
+  - id: HR-004
+    description: Candidate notification of AI use
+    action: [screen_resume, rank_candidate, interview_schedule]
+    conditions:
+      - field: metadata.candidate_notified
+        operator: equals
+        value: true
+    on_violation: warn
+    message: "Candidates should be notified that AI is used in the hiring process"
+    tags: [transparency, eu-ai-act, candidate-rights]
+
+  - id: HR-005
+    description: Disability accommodation in assessments
+    action: assess_candidate
+    conditions:
+      - field: metadata.accommodation_offered
+        operator: equals
+        value: true
+    on_violation: warn
+    message: "AI assessments must offer reasonable accommodations"
+    tags: [ada, accessibility, inclusion]
+
+  - id: HR-006
+    description: Only HR staff can access candidate data
+    action: "*"
+    conditions:
+      - field: caller.roles
+        operator: contains
+        value: hr_staff
+    on_violation: block
+    tags: [access-control, data-protection]

@@ -1,0 +1,78 @@
+schema_version: "1.0"
+
+metadata:
+  name: Content Generation Guardrails
+  version: "2.1.0"
+  author: Trust & Safety Team
+  description: >
+    Enforces responsible content generation policies. Blocks harmful output,
+    requires bias checks on classification tasks, and logs all generation
+    events for audit review.
+  effective_date: "2026-03-01"
+  stakeholders:
+    - VP of Trust & Safety
+    - Legal Counsel
+    - Product Lead
+
+data_governance:
+  allowed_input_classes:
+    - public
+    - internal
+  allowed_output_classes:
+    - public
+  retention_period: P365D
+  cross_border_transfer: true
+
+rules:
+  - id: CM-001
+    description: Generated content must pass toxicity screening
+    action: generate
+    conditions:
+      - field: output.toxicity_score
+        operator: less_than
+        value: 0.15
+    on_violation: block
+    tags: [safety, content-quality]
+
+  - id: CM-002
+    description: Content must not contain known copyrighted material markers
+    action: generate
+    conditions:
+      - field: output.copyright_flag
+        operator: equals
+        value: false
+    on_violation: block
+    tags: [legal, ip]
+
+  - id: CM-003
+    description: Classification tasks must include bias audit metadata
+    action: classify
+    conditions:
+      - field: metadata.bias_audit_id
+        operator: exists
+        value: true
+    on_violation: warn
+    tags: [fairness, bias]
+
+  - id: CM-004
+    description: Input prompts must not exceed 10000 tokens
+    action: "*"
+    conditions:
+      - field: input.token_count
+        operator: less_than
+        value: 10000
+    on_violation: block
+    tags: [cost, resource-management]
+
+  - id: CM-005
+    description: Translations must specify source and target languages
+    action: translate
+    conditions:
+      - field: input.source_language
+        operator: exists
+        value: true
+      - field: input.target_language
+        operator: exists
+        value: true
+    on_violation: block
+    tags: [quality, i18n]

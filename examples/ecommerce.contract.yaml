@@ -1,0 +1,92 @@
+schema_version: "1.0"
+metadata:
+  name: E-Commerce AI Policy
+  version: "1.0.0"
+  author: Product & Legal Team
+  description: >
+    Governs AI-driven product recommendations, dynamic pricing,
+    fraud detection, and customer service automation for e-commerce.
+  effective_date: "2025-01-01"
+  review_date: "2025-06-01"
+  stakeholders: [CPO, Head of Legal, Head of Data Science]
+
+data_governance:
+  allowed_input_classes: [pii, internal, public]
+  allowed_output_classes: [internal, public]
+  retention_period: P1Y
+  cross_border_transfer: true
+
+rules:
+  - id: ECOM-001
+    description: Price discrimination prevention
+    action: dynamic_pricing
+    conditions:
+      - field: input.uses_demographics
+        operator: equals
+        value: false
+    on_violation: block
+    message: "Dynamic pricing must not use demographic data (age, gender, location-based discrimination)"
+    tags: [fairness, pricing, consumer-protection]
+
+  - id: ECOM-002
+    description: Recommendation transparency
+    action: recommend_product
+    conditions:
+      - field: output.includes_sponsorship_disclosure
+        operator: equals
+        value: true
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-001
+        type: add_disclosure
+        params:
+          text: "Sponsored recommendation"
+    tags: [ftc, transparency, advertising]
+
+  - id: ECOM-003
+    description: Fraud detection requires minimum confidence
+    action: flag_fraud
+    conditions:
+      - field: output.confidence
+        operator: greater_than
+        value: 0.90
+    on_violation: warn
+    message: "Fraud flag confidence too low — may result in false positives"
+    tags: [fraud, accuracy, customer-experience]
+
+  - id: ECOM-004
+    description: Customer service bot escalation
+    action: customer_service
+    conditions:
+      - field: output.sentiment_score
+        operator: greater_than
+        value: -0.5
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-002
+        type: escalate_to_human
+        params:
+          reason: "Negative customer sentiment detected"
+    tags: [customer-experience, escalation]
+
+  - id: ECOM-005
+    description: No fake reviews or testimonials
+    action: generate_review
+    conditions:
+      - field: metadata.is_synthetic
+        operator: equals
+        value: false
+    on_violation: block
+    message: "Generation of synthetic reviews is prohibited"
+    tags: [ftc, authenticity, trust]
+
+  - id: ECOM-006
+    description: Inventory claims must be accurate
+    action: recommend_product
+    conditions:
+      - field: context.in_stock
+        operator: equals
+        value: true
+    on_violation: warn
+    message: "Recommending out-of-stock products damages customer trust"
+    tags: [accuracy, customer-experience]

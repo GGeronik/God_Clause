@@ -1,0 +1,530 @@
+openapi: 3.1.0
+info:
+  title: God Clause API
+  description: Embeddable AI Governance Framework — Policy Decision Point (PDP)
+  version: 2.0.0
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+paths:
+  /v1/evaluate:
+    post:
+      summary: Evaluate a policy context
+      description: Evaluate an AI action context against all active contracts and return a policy decision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvaluateRequest"
+      responses:
+        "200":
+          description: Policy decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluateResponse"
+
+  /v1/enforce:
+    post:
+      summary: Enforce a policy context
+      description: Evaluate and return 403 if any blocking rule fails.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvaluateRequest"
+      responses:
+        "200":
+          description: Policy decision (permitted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnforceResponse"
+        "403":
+          description: Policy violation (blocked)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViolationError"
+
+  /v1/evaluate/batch:
+    post:
+      summary: Batch evaluate multiple contexts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contexts]
+              properties:
+                contexts:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PolicyContext"
+                options:
+                  $ref: "#/components/schemas/EvaluateOptions"
+      responses:
+        "200":
+          description: Array of decisions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BatchResult"
+
+  /v1/contracts:
+    get:
+      summary: List active contracts
+      responses:
+        "200":
+          description: Active contracts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contracts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ContractSummary"
+    post:
+      summary: Load a new contract
+      requestBody:
+        required: true
+        content:
+          text/yaml:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        "201":
+          description: Contract loaded
+        "400":
+          description: Invalid contract
+
+  /v1/contracts/{name}/activate/{version}:
+    put:
+      summary: Activate a contract version
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Contract activated
+        "404":
+          description: Contract not found
+
+  /v1/contracts/{name}/deactivate/{version}:
+    put:
+      summary: Deactivate a contract version
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Contract deactivated
+        "404":
+          description: Contract not found
+
+  /v1/audit:
+    get:
+      summary: Query audit log
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: allowed
+          in: query
+          schema:
+            type: boolean
+        - name: rule_id
+          in: query
+          schema:
+            type: string
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: trace_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditEntry"
+                  total:
+                    type: integer
+
+  /v1/audit/verify:
+    get:
+      summary: Verify audit hash chain integrity
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  brokenAt:
+                    type: integer
+                  entries_checked:
+                    type: integer
+
+  /v1/audit/seal:
+    post:
+      summary: Create a Merkle seal checkpoint
+      responses:
+        "201":
+          description: Seal created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainSeal"
+        "400":
+          description: No entries to seal
+
+  /v1/health:
+    get:
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  timestamp:
+                    type: string
+
+  /v1/ready:
+    get:
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Server is ready (contracts loaded)
+        "503":
+          description: Server not ready (no contracts)
+
+  /v1/metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        "200":
+          description: Prometheus text format metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /v1/events:
+    get:
+      summary: Server-Sent Events stream
+      description: Real-time event stream for decisions, violations, contract changes, and seals.
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+components:
+  schemas:
+    PolicyContext:
+      type: object
+      required: [action, input, caller]
+      properties:
+        action:
+          type: string
+        input:
+          type: object
+        output:
+          type: object
+        caller:
+          $ref: "#/components/schemas/CallerInfo"
+        metadata:
+          type: object
+        trace:
+          $ref: "#/components/schemas/TraceContext"
+
+    CallerInfo:
+      type: object
+      required: [user_id, session_id, roles]
+      properties:
+        user_id:
+          type: string
+        session_id:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        ip_address:
+          type: string
+        tenant_id:
+          type: string
+
+    TraceContext:
+      type: object
+      required: [trace_id, span_id]
+      properties:
+        trace_id:
+          type: string
+        span_id:
+          type: string
+        parent_span_id:
+          type: string
+        span_type:
+          type: string
+          enum: [agent_run, model_call, tool_call, tool_result, custom]
+
+    EvaluateOptions:
+      type: object
+      properties:
+        includeTags:
+          type: array
+          items:
+            type: string
+        excludeTags:
+          type: array
+          items:
+            type: string
+
+    EvaluateRequest:
+      allOf:
+        - $ref: "#/components/schemas/PolicyContext"
+        - type: object
+          properties:
+            options:
+              $ref: "#/components/schemas/EvaluateOptions"
+
+    EvaluateResponse:
+      type: object
+      properties:
+        decision_id:
+          type: string
+        outcome:
+          type: string
+          enum: [permit, deny, modify]
+        allowed:
+          type: boolean
+        obligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Obligation"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuleRef"
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuleRef"
+        modifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuleRef"
+        governance_context:
+          $ref: "#/components/schemas/GovernanceContext"
+        evaluation_ms:
+          type: number
+
+    EnforceResponse:
+      type: object
+      properties:
+        decision_id:
+          type: string
+        outcome:
+          type: string
+        allowed:
+          type: boolean
+        obligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Obligation"
+        governance_context:
+          $ref: "#/components/schemas/GovernanceContext"
+
+    ViolationError:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: [policy_violation]
+        message:
+          type: string
+        decision:
+          type: object
+
+    Obligation:
+      type: object
+      properties:
+        obligation_id:
+          type: string
+        type:
+          type: string
+        params:
+          type: object
+        source_rule_id:
+          type: string
+
+    GovernanceContext:
+      type: object
+      properties:
+        contract_id:
+          type: string
+        policy_sha256:
+          type: string
+
+    RuleRef:
+      type: object
+      properties:
+        rule_id:
+          type: string
+        description:
+          type: string
+
+    ContractSummary:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        author:
+          type: string
+        description:
+          type: string
+        effective_date:
+          type: string
+        rules_count:
+          type: integer
+
+    AuditEntry:
+      type: object
+      properties:
+        entry_id:
+          type: string
+        decision_id:
+          type: string
+        contract_name:
+          type: string
+        timestamp:
+          type: string
+        action:
+          type: string
+        allowed:
+          type: boolean
+        outcome:
+          type: string
+        hash:
+          type: string
+        prev_hash:
+          type: string
+
+    ChainSeal:
+      type: object
+      properties:
+        seal_id:
+          type: string
+        from_entry_id:
+          type: string
+        to_entry_id:
+          type: string
+        entry_count:
+          type: integer
+        merkle_root:
+          type: string
+        timestamp:
+          type: string
+
+    BatchResult:
+      type: object
+      properties:
+        decision_id:
+          type: string
+        outcome:
+          type: string
+        allowed:
+          type: boolean
+        blocks:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        obligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Obligation"
