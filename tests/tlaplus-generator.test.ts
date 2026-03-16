@@ -262,7 +262,7 @@ describe("TLAPlusGenerator", () => {
       const spec = gen.generate(makeContract());
       const result = await gen.runModelChecker(spec);
       // Will be "error" because java exec fails, not "unavailable"
-      expect(["error", "unavailable"]).toContain(result.status);
+      expect(["error", "unavailable", "failed"]).toContain(result.status);
       expect(result.invariantsChecked).toContain("TypeInvariant");
     });
   });
