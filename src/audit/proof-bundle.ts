@@ -1,12 +1,6 @@
 import { randomUUID } from "crypto";
 import type { GodClause } from "../governance";
-import type {
-  AuditEntry,
-  ProofBundle,
-  ProofVerificationResult,
-  HumanOverride,
-  ChainSealRef,
-} from "../types";
+import type { AuditEntry, ProofBundle, ProofVerificationResult, HumanOverride, ChainSealRef } from "../types";
 import { computeMerkleRoot, ChainSeal } from "./seal";
 
 /**
@@ -66,9 +60,7 @@ export class ProofBundleBuilder {
     }));
 
     // 4. Collect contracts
-    const contracts = opts?.includeContracts !== false
-      ? [...this.gov.getContracts()]
-      : [];
+    const contracts = opts?.includeContracts !== false ? [...this.gov.getContracts()] : [];
 
     // 5. Package
     const bundle: ProofBundle = {

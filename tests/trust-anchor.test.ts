@@ -104,11 +104,13 @@ describe("SoftwareTrustAnchor", () => {
     const quote = await anchor.quote(nonce);
 
     // Reconstruct payload and verify signature
-    const payload = Buffer.from(JSON.stringify({
-      nonce: quote.nonce,
-      measurements: quote.measurements,
-      timestamp: quote.timestamp,
-    }));
+    const payload = Buffer.from(
+      JSON.stringify({
+        nonce: quote.nonce,
+        measurements: quote.measurements,
+        timestamp: quote.timestamp,
+      }),
+    );
 
     const sigBuf = Buffer.from(quote.signature, "hex");
     const valid = await anchor.verify(payload, sigBuf);

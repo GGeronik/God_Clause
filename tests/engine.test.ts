@@ -10,10 +10,7 @@ import {
   evaluateConditionExpr,
 } from "../src";
 
-const healthcareYAML = readFileSync(
-  join(__dirname, "../examples/healthcare-ai.contract.yaml"),
-  "utf-8",
-);
+const healthcareYAML = readFileSync(join(__dirname, "../examples/healthcare-ai.contract.yaml"), "utf-8");
 
 function makeCtx(overrides: Partial<PolicyContext> = {}): PolicyContext {
   return {
@@ -154,9 +151,7 @@ rules:
     on_violation: log
 `);
 
-    const decision = await gov.evaluate(
-      makeCtx({ input: { prompt: "test", token_count: 500 } }),
-    );
+    const decision = await gov.evaluate(makeCtx({ input: { prompt: "test", token_count: 500 } }));
     expect(decision.allowed).toBe(true);
     expect(decision.logs).toHaveLength(1);
     expect(decision.logs[0].rule_id).toBe("LOG-001");
@@ -165,7 +160,9 @@ rules:
   it("fires onLog hook for log-severity violations", async () => {
     let hookFired = false;
     const gov = new GodClause({
-      onLog: () => { hookFired = true; },
+      onLog: () => {
+        hookFired = true;
+      },
     });
     gov.loadContractYAML(`
 schema_version: "1.0"
@@ -225,72 +222,93 @@ describe("Composite Condition Evaluator", () => {
   });
 
   it("evaluates ANY (at least one must pass)", () => {
-    const result = evaluateConditionExpr({
-      any: [
-        { field: "caller.roles", operator: "contains", value: "admin" },
-        { field: "caller.roles", operator: "contains", value: "superuser" },
-      ],
-    }, ctx);
+    const result = evaluateConditionExpr(
+      {
+        any: [
+          { field: "caller.roles", operator: "contains", value: "admin" },
+          { field: "caller.roles", operator: "contains", value: "superuser" },
+        ],
+      },
+      ctx,
+    );
     expect(result.passed).toBe(true);
   });
 
   it("fails ANY when none pass", () => {
-    const result = evaluateConditionExpr({
-      any: [
-        { field: "caller.roles", operator: "contains", value: "superuser" },
-        { field: "caller.roles", operator: "contains", value: "root" },
-      ],
-    }, ctx);
+    const result = evaluateConditionExpr(
+      {
+        any: [
+          { field: "caller.roles", operator: "contains", value: "superuser" },
+          { field: "caller.roles", operator: "contains", value: "root" },
+        ],
+      },
+      ctx,
+    );
     expect(result.passed).toBe(false);
     expect(result.violations.length).toBe(2);
   });
 
   it("evaluates ALL (all must pass)", () => {
-    const result = evaluateConditionExpr({
-      all: [
-        { field: "output.confidence", operator: "greater_than", value: 0.9 },
-        { field: "output.flagged", operator: "equals", value: false },
-      ],
-    }, ctx);
+    const result = evaluateConditionExpr(
+      {
+        all: [
+          { field: "output.confidence", operator: "greater_than", value: 0.9 },
+          { field: "output.flagged", operator: "equals", value: false },
+        ],
+      },
+      ctx,
+    );
     expect(result.passed).toBe(true);
   });
 
   it("fails ALL when any child fails", () => {
-    const result = evaluateConditionExpr({
-      all: [
-        { field: "output.confidence", operator: "greater_than", value: 0.99 },
-        { field: "output.flagged", operator: "equals", value: false },
-      ],
-    }, ctx);
+    const result = evaluateConditionExpr(
+      {
+        all: [
+          { field: "output.confidence", operator: "greater_than", value: 0.99 },
+          { field: "output.flagged", operator: "equals", value: false },
+        ],
+      },
+      ctx,
+    );
     expect(result.passed).toBe(false);
   });
 
   it("evaluates NOT (inverts child)", () => {
-    const result = evaluateConditionExpr({
-      not: { field: "output.flagged", operator: "equals", value: true },
-    }, ctx);
+    const result = evaluateConditionExpr(
+      {
+        not: { field: "output.flagged", operator: "equals", value: true },
+      },
+      ctx,
+    );
     expect(result.passed).toBe(true);
   });
 
   it("fails NOT when child passes", () => {
-    const result = evaluateConditionExpr({
-      not: { field: "output.flagged", operator: "equals", value: false },
-    }, ctx);
+    const result = evaluateConditionExpr(
+      {
+        not: { field: "output.flagged", operator: "equals", value: false },
+      },
+      ctx,
+    );
     expect(result.passed).toBe(false);
   });
 
   it("handles nested composites (ANY containing ALL with NOT)", () => {
-    const result = evaluateConditionExpr({
-      any: [
-        { field: "caller.roles", operator: "contains", value: "superuser" },
-        {
-          all: [
-            { field: "output.confidence", operator: "greater_than", value: 0.9 },
-            { not: { field: "output.flagged", operator: "equals", value: true } },
-          ],
-        },
-      ],
-    }, ctx);
+    const result = evaluateConditionExpr(
+      {
+        any: [
+          { field: "caller.roles", operator: "contains", value: "superuser" },
+          {
+            all: [
+              { field: "output.confidence", operator: "greater_than", value: 0.9 },
+              { not: { field: "output.flagged", operator: "equals", value: true } },
+            ],
+          },
+        ],
+      },
+      ctx,
+    );
     expect(result.passed).toBe(true);
   });
 

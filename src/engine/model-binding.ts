@@ -20,9 +20,7 @@ export class ModelBindingVerifier {
    * @param artifactHash - Optional SHA-256 hash of the model artifact
    */
   verify(modelId: string, provider: string, artifactHash?: string): ModelBindingResult {
-    const binding = this.bindings.find(
-      (b) => b.model_id === modelId && b.provider === provider,
-    );
+    const binding = this.bindings.find((b) => b.model_id === modelId && b.provider === provider);
 
     if (!binding) {
       return { allowed: false, reason: "model_not_in_bindings" };

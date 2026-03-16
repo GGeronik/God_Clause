@@ -76,9 +76,7 @@ export class ContractWatcher {
   /** Reload all contract files from the directory. */
   reloadAll(): void {
     if (!existsSync(this.dir)) return;
-    const files = readdirSync(this.dir).filter((f) =>
-      this.extensions.some((ext) => f.endsWith(ext)),
-    );
+    const files = readdirSync(this.dir).filter((f) => this.extensions.some((ext) => f.endsWith(ext)));
     for (const file of files) {
       this.reloadFile(file);
     }

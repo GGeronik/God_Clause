@@ -3,10 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { parseContract, serializeContract, summarizeContract, ContractParseError } from "../src";
 
-const healthcareYAML = readFileSync(
-  join(__dirname, "../examples/healthcare-ai.contract.yaml"),
-  "utf-8",
-);
+const healthcareYAML = readFileSync(join(__dirname, "../examples/healthcare-ai.contract.yaml"), "utf-8");
 
 describe("Trust Contract Parser", () => {
   it("parses a valid YAML contract", () => {

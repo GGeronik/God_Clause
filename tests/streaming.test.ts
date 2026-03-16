@@ -99,8 +99,7 @@ describe("GovernedStream — sentence boundary mode", () => {
     const detectFields = (text: string) => ({
       contains_ssn: /\d{3}-\d{2}-\d{4}/.test(text),
     });
-    const applyObligations = (text: string, _obls: Obligation[]) =>
-      text.replace(/\d{3}-\d{2}-\d{4}/g, "[REDACTED]");
+    const applyObligations = (text: string, _obls: Obligation[]) => text.replace(/\d{3}-\d{2}-\d{4}/g, "[REDACTED]");
 
     const gov = mockGov((ctx) => {
       const output = ctx.output as Record<string, unknown>;
@@ -161,8 +160,7 @@ describe("GovernedStream — chars boundary mode", () => {
     const detectFields = (text: string) => ({
       contains_ssn: /\d{3}-\d{2}-\d{4}/.test(text),
     });
-    const applyObligations = (text: string, _obls: Obligation[]) =>
-      text.replace(/\d{3}-\d{2}-\d{4}/g, "[REDACTED]");
+    const applyObligations = (text: string, _obls: Obligation[]) => text.replace(/\d{3}-\d{2}-\d{4}/g, "[REDACTED]");
 
     const gov = mockGov((ctx) => {
       const output = ctx.output as Record<string, unknown>;

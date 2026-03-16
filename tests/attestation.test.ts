@@ -59,10 +59,12 @@ describe("AttestationService", () => {
     it("collects contract_hash claim with governance context", async () => {
       const challenge = service.generateChallenge(["contract_hash"]);
       const mockGov = {
-        getContracts: () => [{
-          metadata: { name: "Test", version: "1.0.0" },
-          rules: [{ id: "R1" }],
-        }],
+        getContracts: () => [
+          {
+            metadata: { name: "Test", version: "1.0.0" },
+            rules: [{ id: "R1" }],
+          },
+        ],
         getAuditEntries: () => [],
       };
 

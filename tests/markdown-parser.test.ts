@@ -134,31 +134,35 @@ invalid: yaml: [broken
   });
 
   it("handles JSON code blocks", () => {
-    const jsonContract = JSON.stringify({
-      schema_version: "1.0",
-      metadata: {
-        name: "JSON Contract",
-        version: "1.0.0",
-        author: "Test",
-        description: "A JSON contract",
-        effective_date: "2025-01-01",
-      },
-      data_governance: {
-        allowed_input_classes: ["public"],
-        allowed_output_classes: ["public"],
-        retention_period: "P30D",
-        cross_border_transfer: false,
-      },
-      rules: [
-        {
-          id: "J-001",
-          description: "JSON rule",
-          action: "generate",
-          conditions: [{ field: "output.x", operator: "equals", value: true }],
-          on_violation: "block",
+    const jsonContract = JSON.stringify(
+      {
+        schema_version: "1.0",
+        metadata: {
+          name: "JSON Contract",
+          version: "1.0.0",
+          author: "Test",
+          description: "A JSON contract",
+          effective_date: "2025-01-01",
         },
-      ],
-    }, null, 2);
+        data_governance: {
+          allowed_input_classes: ["public"],
+          allowed_output_classes: ["public"],
+          retention_period: "P30D",
+          cross_border_transfer: false,
+        },
+        rules: [
+          {
+            id: "J-001",
+            description: "JSON rule",
+            action: "generate",
+            conditions: [{ field: "output.x", operator: "equals", value: true }],
+            on_violation: "block",
+          },
+        ],
+      },
+      null,
+      2,
+    );
 
     const md = `# JSON Policy
 
@@ -204,8 +208,6 @@ Last line`;
   });
 
   it("handles document with only prose", () => {
-    expect(() => parseMarkdownContract("# Title\n\nJust text.")).toThrow(
-      "No valid trust contract found",
-    );
+    expect(() => parseMarkdownContract("# Title\n\nJust text.")).toThrow("No valid trust contract found");
   });
 });

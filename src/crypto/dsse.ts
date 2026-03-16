@@ -13,10 +13,10 @@ import type { TrustContract } from "../types";
  */
 export interface DSSEEnvelope {
   payloadType: string;
-  payload: string;  // base64-encoded canonical contract
+  payload: string; // base64-encoded canonical contract
   signatures: Array<{
     keyid: string;
-    sig: string;    // base64-encoded signature
+    sig: string; // base64-encoded signature
   }>;
 }
 

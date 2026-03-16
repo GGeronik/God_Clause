@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MCPRouter, globMatch } from "../src/engine/mcp-router";
 import { MemoryStateStore } from "../src/engine/state-store";
-import type {
-  MCPPermission,
-  MCPToolCall,
-  PolicyContext,
-} from "../src/types";
+import type { MCPPermission, MCPToolCall, PolicyContext } from "../src/types";
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -69,26 +65,20 @@ describe("globMatch", () => {
 
 describe("MCPRouter", () => {
   it("allows exact tool name match", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "file_read", allowed: true },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "file_read", allowed: true }]);
     const result = await router.authorize(makeCall(), makeCtx());
     expect(result.allowed).toBe(true);
   });
 
   it("allows wildcard match (file_* matches file_read)", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "file_*", allowed: true },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "file_*", allowed: true }]);
     const result = await router.authorize(makeCall({ tool_name: "file_read" }), makeCtx());
     expect(result.allowed).toBe(true);
     expect(result.matched_permission?.tool_pattern).toBe("file_*");
   });
 
   it("allows universal wildcard (* matches everything)", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "*", allowed: true },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "*", allowed: true }]);
     const result = await router.authorize(makeCall({ tool_name: "some_random_tool" }), makeCtx());
     expect(result.allowed).toBe(true);
   });
@@ -108,9 +98,7 @@ describe("MCPRouter", () => {
   });
 
   it("defaults to deny when no permission matches (fail-closed)", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "file_*", allowed: true },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "file_*", allowed: true }]);
     const result = await router.authorize(makeCall({ tool_name: "database_query" }), makeCtx());
     expect(result.allowed).toBe(false);
     expect(result.denial_reason).toContain("No permission rule matches");
@@ -118,50 +106,38 @@ describe("MCPRouter", () => {
   });
 
   it("forwards require_human_approval flag", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "dangerous_*", allowed: true, require_human_approval: true },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "dangerous_*", allowed: true, require_human_approval: true }]);
     const result = await router.authorize(makeCall({ tool_name: "dangerous_delete" }), makeCtx());
     expect(result.allowed).toBe(true);
     expect(result.require_human_approval).toBe(true);
   });
 
   it("defaults require_human_approval to false when not set", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "*", allowed: true },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "*", allowed: true }]);
     const result = await router.authorize(makeCall(), makeCtx());
     expect(result.require_human_approval).toBe(false);
   });
 
   it("forwards audit_level from matched permission", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "file_*", allowed: true, audit_level: "summary" },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "file_*", allowed: true, audit_level: "summary" }]);
     const result = await router.authorize(makeCall(), makeCtx());
     expect(result.audit_level).toBe("summary");
   });
 
   it("defaults audit_level to full when not specified", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "*", allowed: true },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "*", allowed: true }]);
     const result = await router.authorize(makeCall(), makeCtx());
     expect(result.audit_level).toBe("full");
   });
 
   it("forwards audit_level 'none'", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "logging_*", allowed: true, audit_level: "none" },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "logging_*", allowed: true, audit_level: "none" }]);
     const result = await router.authorize(makeCall({ tool_name: "logging_info" }), makeCtx());
     expect(result.audit_level).toBe("none");
   });
 
   it("provides denial_reason when tool is explicitly denied", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "admin_*", allowed: false },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "admin_*", allowed: false }]);
     const result = await router.authorize(makeCall({ tool_name: "admin_reset" }), makeCtx());
     expect(result.allowed).toBe(false);
     expect(result.denial_reason).toContain("denied by permission rule");
@@ -170,10 +146,7 @@ describe("MCPRouter", () => {
 
   it("enforces session rate limiting with max_calls_per_session", async () => {
     const store = new MemoryStateStore();
-    const router = new MCPRouter(
-      [{ tool_pattern: "api_*", allowed: true, max_calls_per_session: 3 }],
-      store,
-    );
+    const router = new MCPRouter([{ tool_pattern: "api_*", allowed: true, max_calls_per_session: 3 }], store);
     const ctx = makeCtx();
 
     // First 3 calls should succeed
@@ -190,10 +163,7 @@ describe("MCPRouter", () => {
 
   it("rate limits are per-session (different sessions independent)", async () => {
     const store = new MemoryStateStore();
-    const router = new MCPRouter(
-      [{ tool_pattern: "api_*", allowed: true, max_calls_per_session: 1 }],
-      store,
-    );
+    const router = new MCPRouter([{ tool_pattern: "api_*", allowed: true, max_calls_per_session: 1 }], store);
     const ctx = makeCtx();
 
     const r1 = await router.authorize(makeCall({ tool_name: "api_fetch", session_id: "s1" }), ctx);
@@ -209,9 +179,7 @@ describe("MCPRouter", () => {
   });
 
   it("skips rate limiting when no state store is provided", async () => {
-    const router = new MCPRouter([
-      { tool_pattern: "api_*", allowed: true, max_calls_per_session: 1 },
-    ]);
+    const router = new MCPRouter([{ tool_pattern: "api_*", allowed: true, max_calls_per_session: 1 }]);
 
     // Without a state store, rate limiting is not enforced
     const r1 = await router.authorize(makeCall({ tool_name: "api_fetch" }), makeCtx());
@@ -254,19 +222,23 @@ describe("MCPRouter", () => {
       {
         tool_pattern: "file_*",
         allowed: true,
-        conditions: [
-          { field: "caller.roles", operator: "contains", value: "admin" },
-        ],
+        conditions: [{ field: "caller.roles", operator: "contains", value: "admin" }],
       },
       { tool_pattern: "*", allowed: false },
     ]);
 
     // Admin role -> conditions pass, allowed
-    const r1 = await router.authorize(makeCall(), makeCtx({ caller: { user_id: "u1", session_id: "s1", roles: ["admin"] } }));
+    const r1 = await router.authorize(
+      makeCall(),
+      makeCtx({ caller: { user_id: "u1", session_id: "s1", roles: ["admin"] } }),
+    );
     expect(r1.allowed).toBe(true);
 
     // Non-admin -> conditions fail, falls through to deny-all
-    const r2 = await router.authorize(makeCall(), makeCtx({ caller: { user_id: "u2", session_id: "s2", roles: ["viewer"] } }));
+    const r2 = await router.authorize(
+      makeCall(),
+      makeCtx({ caller: { user_id: "u2", session_id: "s2", roles: ["viewer"] } }),
+    );
     expect(r2.allowed).toBe(false);
   });
 

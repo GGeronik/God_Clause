@@ -3,10 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { GodClause, PolicyContext } from "../src";
 
-const compositeYAML = readFileSync(
-  join(__dirname, "../examples/composite-policy.contract.yaml"),
-  "utf-8",
-);
+const compositeYAML = readFileSync(join(__dirname, "../examples/composite-policy.contract.yaml"), "utf-8");
 
 function makeCtx(overrides: Partial<PolicyContext> = {}): PolicyContext {
   return {
@@ -40,10 +37,9 @@ describe("Tag Filtering", () => {
     gov.loadContractYAML(compositeYAML);
 
     // Exclude audit tag — FIN-004 should be skipped
-    const decision = await gov.evaluate(
-      makeCtx({ action: "classify", input: { amount: 2000000 } }),
-      { excludeTags: ["audit"] },
-    );
+    const decision = await gov.evaluate(makeCtx({ action: "classify", input: { amount: 2000000 } }), {
+      excludeTags: ["audit"],
+    });
     expect(decision.evaluations.every((e) => e.rule_id !== "FIN-004")).toBe(true);
   });
 
@@ -52,10 +48,10 @@ describe("Tag Filtering", () => {
     gov.loadContractYAML(compositeYAML);
 
     // Include traceability but exclude model-governance
-    const decision = await gov.evaluate(
-      makeCtx({ action: "classify" }),
-      { includeTags: ["traceability"], excludeTags: ["model-governance"] },
-    );
+    const decision = await gov.evaluate(makeCtx({ action: "classify" }), {
+      includeTags: ["traceability"],
+      excludeTags: ["model-governance"],
+    });
     // FIN-003 has both traceability and model-governance — exclude wins
     expect(decision.evaluations).toHaveLength(0);
   });

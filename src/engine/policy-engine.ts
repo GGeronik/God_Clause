@@ -74,14 +74,10 @@ export class PolicyEngine {
 
       // Tag filtering
       if (opts?.includeTags?.length) {
-        rules = rules.filter((r) =>
-          r.tags?.some((t) => opts.includeTags!.includes(t)),
-        );
+        rules = rules.filter((r) => r.tags?.some((t) => opts.includeTags!.includes(t)));
       }
       if (opts?.excludeTags?.length) {
-        rules = rules.filter(
-          (r) => !r.tags?.some((t) => opts.excludeTags!.includes(t)),
-        );
+        rules = rules.filter((r) => !r.tags?.some((t) => opts.excludeTags!.includes(t)));
       }
 
       for (const rule of rules) {
@@ -104,23 +100,13 @@ export class PolicyEngine {
       }
     }
 
-    const warnings = allEvaluations.filter(
-      (e) => !e.passed && e.severity === "warn",
-    );
-    const blocks = allEvaluations.filter(
-      (e) => !e.passed && e.severity === "block",
-    );
-    const logs = allEvaluations.filter(
-      (e) => !e.passed && e.severity === "log",
-    );
-    const modifications = allEvaluations.filter(
-      (e) => !e.passed && e.severity === "modify",
-    );
+    const warnings = allEvaluations.filter((e) => !e.passed && e.severity === "warn");
+    const blocks = allEvaluations.filter((e) => !e.passed && e.severity === "block");
+    const logs = allEvaluations.filter((e) => !e.passed && e.severity === "log");
+    const modifications = allEvaluations.filter((e) => !e.passed && e.severity === "modify");
 
     // Collect all obligations from modify evaluations
-    const obligations: Obligation[] = modifications.flatMap(
-      (m) => m.obligations ?? [],
-    );
+    const obligations: Obligation[] = modifications.flatMap((m) => m.obligations ?? []);
 
     // Compute outcome: block overrides modify
     let outcome: DecisionOutcome = "permit";
@@ -173,13 +159,8 @@ export class PolicyEngine {
   async enforce(ctx: PolicyContext, opts?: EvaluateOptions): Promise<PolicyDecision> {
     const decision = await this.evaluate(ctx, opts);
     if (!decision.allowed) {
-      const reasons = decision.blocks
-        .map((b) => `[${b.rule_id}] ${b.rule_description}`)
-        .join("; ");
-      const err = new PolicyViolationError(
-        `Action "${ctx.action}" blocked: ${reasons}`,
-        decision,
-      );
+      const reasons = decision.blocks.map((b) => `[${b.rule_id}] ${b.rule_description}`).join("; ");
+      const err = new PolicyViolationError(`Action "${ctx.action}" blocked: ${reasons}`, decision);
       throw err;
     }
     return decision;

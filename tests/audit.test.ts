@@ -3,10 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { GodClause, PolicyContext } from "../src";
 
-const healthcareYAML = readFileSync(
-  join(__dirname, "../examples/healthcare-ai.contract.yaml"),
-  "utf-8",
-);
+const healthcareYAML = readFileSync(join(__dirname, "../examples/healthcare-ai.contract.yaml"), "utf-8");
 
 function makeCtx(overrides: Partial<PolicyContext> = {}): PolicyContext {
   return {
@@ -392,7 +389,12 @@ rules:
         {
           schema_version: "1.0",
           metadata: { name: "T", version: "1.0.0", author: "T", description: "T", effective_date: "2025-01-01" },
-          data_governance: { allowed_input_classes: ["public"], allowed_output_classes: ["public"], retention_period: "P30D", cross_border_transfer: false },
+          data_governance: {
+            allowed_input_classes: ["public"],
+            allowed_output_classes: ["public"],
+            retention_period: "P30D",
+            cross_border_transfer: false,
+          },
           rules: [],
         },
       );
@@ -412,7 +414,12 @@ rules:
     const contract = {
       schema_version: "1.0",
       metadata: { name: "T", version: "1.0.0", author: "T", description: "T", effective_date: "2025-01-01" },
-      data_governance: { allowed_input_classes: ["public" as const], allowed_output_classes: ["public" as const], retention_period: "P30D", cross_border_transfer: false },
+      data_governance: {
+        allowed_input_classes: ["public" as const],
+        allowed_output_classes: ["public" as const],
+        retention_period: "P30D",
+        cross_border_transfer: false,
+      },
       rules: [],
     };
 
@@ -425,7 +432,16 @@ rules:
           outcome: "deny",
           evaluations: [],
           warnings: [],
-          blocks: [{ rule_id: "R-1", rule_description: "test", passed: false, severity: "block", violated_conditions: [], timestamp: new Date().toISOString() }],
+          blocks: [
+            {
+              rule_id: "R-1",
+              rule_description: "test",
+              passed: false,
+              severity: "block",
+              violated_conditions: [],
+              timestamp: new Date().toISOString(),
+            },
+          ],
           logs: [],
           modifications: [],
           obligations: [],
@@ -453,7 +469,12 @@ rules:
     const contract = {
       schema_version: "1.0",
       metadata: { name: "T", version: "1.0.0", author: "T", description: "T", effective_date: "2025-01-01" },
-      data_governance: { allowed_input_classes: ["public" as const], allowed_output_classes: ["public" as const], retention_period: "P30D", cross_border_transfer: false },
+      data_governance: {
+        allowed_input_classes: ["public" as const],
+        allowed_output_classes: ["public" as const],
+        retention_period: "P30D",
+        cross_border_transfer: false,
+      },
       rules: [],
     };
 

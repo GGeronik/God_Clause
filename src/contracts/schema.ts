@@ -21,9 +21,18 @@ export const trustContractSchema = {
             operator: {
               type: "string",
               enum: [
-                "equals", "not_equals", "contains", "not_contains",
-                "greater_than", "less_than", "in", "not_in",
-                "matches", "exists", "not_exists", "rate_limit",
+                "equals",
+                "not_equals",
+                "contains",
+                "not_contains",
+                "greater_than",
+                "less_than",
+                "in",
+                "not_in",
+                "matches",
+                "exists",
+                "not_exists",
+                "rate_limit",
               ],
             },
             value: {},
@@ -85,12 +94,7 @@ export const trustContractSchema = {
     },
     data_governance: {
       type: "object",
-      required: [
-        "allowed_input_classes",
-        "allowed_output_classes",
-        "retention_period",
-        "cross_border_transfer",
-      ],
+      required: ["allowed_input_classes", "allowed_output_classes", "retention_period", "cross_border_transfer"],
       additionalProperties: false,
       properties: {
         allowed_input_classes: {
@@ -170,10 +174,7 @@ export const trustContractSchema = {
           id: { type: "string" },
           description: { type: "string" },
           action: {
-            oneOf: [
-              { type: "string" },
-              { type: "array", items: { type: "string" } },
-            ],
+            oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
           },
           conditions: {
             type: "array",
@@ -229,10 +230,7 @@ export const trustContractSchema = {
           id: { type: "string" },
           description: { type: "string" },
           action: {
-            oneOf: [
-              { type: "string" },
-              { type: "array", items: { type: "string" } },
-            ],
+            oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }],
           },
           conditions: {
             type: "array",

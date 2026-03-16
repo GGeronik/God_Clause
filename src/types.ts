@@ -3,7 +3,17 @@
 export type Severity = "block" | "warn" | "log" | "modify";
 export type DecisionOutcome = "permit" | "deny" | "modify";
 export type DataClass = "pii" | "phi" | "financial" | "credentials" | "public" | "internal" | "confidential";
-export type ActionVerb = "generate" | "classify" | "summarize" | "translate" | "extract" | "transform" | "decide" | "recommend" | "*" | (string & {});
+export type ActionVerb =
+  | "generate"
+  | "classify"
+  | "summarize"
+  | "translate"
+  | "extract"
+  | "transform"
+  | "decide"
+  | "recommend"
+  | "*"
+  | (string & {});
 
 /** An obligation attached to a modify-severity rule. */
 export interface Obligation {
@@ -74,11 +84,7 @@ export interface PolicyConditionNot {
 }
 
 /** Recursive condition expression: leaf comparison or boolean combinator. */
-export type PolicyConditionExpr =
-  | PolicyConditionLeaf
-  | PolicyConditionAll
-  | PolicyConditionAny
-  | PolicyConditionNot;
+export type PolicyConditionExpr = PolicyConditionLeaf | PolicyConditionAll | PolicyConditionAny | PolicyConditionNot;
 
 /** @deprecated Use PolicyConditionLeaf instead. Kept for backward compatibility. */
 export type PolicyCondition = PolicyConditionLeaf;
@@ -92,7 +98,7 @@ export type ConditionOperator =
   | "less_than"
   | "in"
   | "not_in"
-  | "matches"       // regex
+  | "matches" // regex
   | "exists"
   | "not_exists"
   | "rate_limit";

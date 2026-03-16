@@ -1,17 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
-import {
-  GodClause,
-  godClauseMiddleware,
-  createAIHook,
-  PolicyViolationError,
-} from "../src";
+import { GodClause, godClauseMiddleware, createAIHook, PolicyViolationError } from "../src";
 
-const healthcareYAML = readFileSync(
-  join(__dirname, "../examples/healthcare-ai.contract.yaml"),
-  "utf-8",
-);
+const healthcareYAML = readFileSync(join(__dirname, "../examples/healthcare-ai.contract.yaml"), "utf-8");
 
 function makeGov() {
   const gov = new GodClause();
@@ -26,8 +18,12 @@ describe("HTTP Middleware", () => {
       statusCode: 200,
       headers: {} as Record<string, string>,
       body: "",
-      setHeader(k: string, v: string) { this.headers[k] = v; },
-      end(body: string) { this.body = body; },
+      setHeader(k: string, v: string) {
+        this.headers[k] = v;
+      },
+      end(body: string) {
+        this.body = body;
+      },
     };
     return { req, res };
   }

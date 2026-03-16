@@ -1,11 +1,4 @@
-import {
-  TrustContract,
-  PolicyContext,
-  PolicyDecision,
-  AuditEntry,
-  AuditQuery,
-  EvaluateOptions,
-} from "./types";
+import { TrustContract, PolicyContext, PolicyDecision, AuditEntry, AuditQuery, EvaluateOptions } from "./types";
 import { parseContract, serializeContract, summarizeContract } from "./contracts/parser";
 import { ContractRegistry } from "./contracts/registry";
 import { PolicyEngine, PolicyEngineOptions, PolicyViolationError } from "./engine/policy-engine";
@@ -203,12 +196,8 @@ export class GodClause {
    * Verify a previously created Merkle seal against current audit entries.
    */
   verifyAuditSeal(seal: ChainSeal): boolean {
-    const fromIdx = this.memorySink.entries.findIndex(
-      (e) => e.entry_id === seal.from_entry_id,
-    );
-    const toIdx = this.memorySink.entries.findIndex(
-      (e) => e.entry_id === seal.to_entry_id,
-    );
+    const fromIdx = this.memorySink.entries.findIndex((e) => e.entry_id === seal.from_entry_id);
+    const toIdx = this.memorySink.entries.findIndex((e) => e.entry_id === seal.to_entry_id);
     if (fromIdx === -1 || toIdx === -1 || toIdx < fromIdx) return false;
 
     const entries = this.memorySink.entries.slice(fromIdx, toIdx + 1);

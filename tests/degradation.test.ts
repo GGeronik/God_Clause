@@ -107,9 +107,7 @@ describe("DegradationManager", () => {
     const mgr = new DegradationManager(makeTiers(), callback);
     mgr.trigger("signature_invalid");
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(
-      expect.objectContaining({ tier: 1, name: "reduced" }),
-    );
+    expect(callback).toHaveBeenCalledWith(expect.objectContaining({ tier: 1, name: "reduced" }));
   });
 
   it("notification callback does not fire when trigger is ignored", () => {

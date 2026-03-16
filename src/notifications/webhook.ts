@@ -54,9 +54,7 @@ export class WebhookNotifier {
       data: payload,
     });
 
-    await Promise.allSettled(
-      matching.map((hook) => this.send(hook, body)),
-    );
+    await Promise.allSettled(matching.map((hook) => this.send(hook, body)));
   }
 
   private async send(hook: WebhookConfig, body: string): Promise<void> {

@@ -1,11 +1,4 @@
-import {
-  TrustContract,
-  PolicyContext,
-  PolicyDecision,
-  AuditEntry,
-  AuditQuery,
-  EvaluateOptions,
-} from "../types";
+import { TrustContract, PolicyContext, PolicyDecision, AuditEntry, AuditQuery, EvaluateOptions } from "../types";
 import { parseContract } from "../contracts/parser";
 import { ContractRegistry } from "../contracts/registry";
 import { PolicyEngine, PolicyEngineOptions } from "../engine/policy-engine";

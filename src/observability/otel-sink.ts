@@ -68,9 +68,7 @@ export class OTelAuditSink implements AuditSink {
       resourceLogs: [
         {
           resource: {
-            attributes: [
-              { key: "service.name", value: { stringValue: this.serviceName } },
-            ],
+            attributes: [{ key: "service.name", value: { stringValue: this.serviceName } }],
           },
           scopeLogs: [
             {

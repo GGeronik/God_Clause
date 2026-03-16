@@ -1,11 +1,6 @@
 import { createHash, createHmac } from "crypto";
 import { v4 as uuidv4 } from "uuid";
-import {
-  AuditEntry,
-  AuditQuery,
-  PolicyDecision,
-  TrustContract,
-} from "../types";
+import { AuditEntry, AuditQuery, PolicyDecision, TrustContract } from "../types";
 
 export interface AuditSink {
   append(entry: AuditEntry): void | Promise<void>;
@@ -67,16 +62,9 @@ export class AuditLog {
    * to reduce volume. Deny and modify decisions are ALWAYS recorded.
    * Returns null when a permit is skipped due to sampling.
    */
-  async record(
-    decision: PolicyDecision,
-    contract: TrustContract,
-  ): Promise<AuditEntry | null> {
+  async record(decision: PolicyDecision, contract: TrustContract): Promise<AuditEntry | null> {
     // Sampling: always log denies and modifies, sample permits
-    if (
-      decision.outcome === "permit" &&
-      this.permitSampleRate < 1.0 &&
-      Math.random() >= this.permitSampleRate
-    ) {
+    if (decision.outcome === "permit" && this.permitSampleRate < 1.0 && Math.random() >= this.permitSampleRate) {
       return null;
     }
 
@@ -106,9 +94,7 @@ export class AuditLog {
       warnings: decision.warnings.map((w) => w.rule_id),
       blocks: decision.blocks.map((b) => b.rule_id),
       logs: decision.logs.map((l) => l.rule_id),
-      obligations: decision.obligations.length > 0
-        ? decision.obligations.map((o) => o.obligation_id)
-        : undefined,
+      obligations: decision.obligations.length > 0 ? decision.obligations.map((o) => o.obligation_id) : undefined,
       tags: allTags.size > 0 ? [...allTags] : undefined,
       tenant_id: decision.context.caller.tenant_id,
       trace_id: decision.context.trace?.trace_id,
@@ -165,14 +151,10 @@ export class AuditLog {
       results = results.filter((e) => e.allowed === query.allowed);
     }
     if (query.rule_id) {
-      results = results.filter((e) =>
-        e.rule_results.some((r) => r.rule_id === query.rule_id),
-      );
+      results = results.filter((e) => e.rule_results.some((r) => r.rule_id === query.rule_id));
     }
     if (query.tags?.length) {
-      results = results.filter((e) =>
-        e.tags?.some((t) => query.tags!.includes(t)),
-      );
+      results = results.filter((e) => e.tags?.some((t) => query.tags!.includes(t)));
     }
     if (query.tenant_id) {
       results = results.filter((e) => e.tenant_id === query.tenant_id);
@@ -197,10 +179,7 @@ export class AuditLog {
    * Verify the integrity of a chain of audit entries.
    * Optionally verify HMAC signatures when a secret key is provided.
    */
-  verifyChain(
-    entries: AuditEntry[],
-    secretKey?: string,
-  ): { valid: boolean; brokenAt?: number } {
+  verifyChain(entries: AuditEntry[], secretKey?: string): { valid: boolean; brokenAt?: number } {
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
       const expected = this.computeHash(entry);

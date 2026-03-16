@@ -32,7 +32,10 @@
       "Bash(xargs ls:*)",
       "Bash(find src:*)",
       "Bash(find tests:*)",
-      "Bash(find examples:*)"
+      "Bash(find examples:*)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes\" git push -u origin main)",
+      "Bash(gh auth:*)",
+      "Bash(gh run:*)"
     ]
   }
 }

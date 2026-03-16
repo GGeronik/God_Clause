@@ -59,7 +59,13 @@ describe("REST API Server", () => {
     // Load a contract via API
     await new Promise<void>((resolve, reject) => {
       const req = http.request(
-        { hostname: "127.0.0.1", port: 3999, method: "POST", path: "/v1/contracts", headers: { "Content-Type": "text/yaml" } },
+        {
+          hostname: "127.0.0.1",
+          port: 3999,
+          method: "POST",
+          path: "/v1/contracts",
+          headers: { "Content-Type": "text/yaml" },
+        },
         (res) => {
           res.on("data", () => {});
           res.on("end", resolve);
@@ -96,24 +102,32 @@ describe("REST API Server", () => {
   });
 
   it("POST /v1/evaluate returns permit for compliant context", async () => {
-    const { status, data } = await request("POST", "/v1/evaluate", JSON.stringify({
-      action: "generate",
-      input: { prompt: "hello" },
-      output: { toxicity: 0.1 },
-      caller: { user_id: "u1", session_id: "s1", roles: ["user"] },
-    }));
+    const { status, data } = await request(
+      "POST",
+      "/v1/evaluate",
+      JSON.stringify({
+        action: "generate",
+        input: { prompt: "hello" },
+        output: { toxicity: 0.1 },
+        caller: { user_id: "u1", session_id: "s1", roles: ["user"] },
+      }),
+    );
     expect(status).toBe(200);
     expect(data.outcome).toBe("permit");
     expect(data.allowed).toBe(true);
   });
 
   it("POST /v1/evaluate returns deny for non-compliant context", async () => {
-    const { status, data } = await request("POST", "/v1/evaluate", JSON.stringify({
-      action: "generate",
-      input: { prompt: "bad" },
-      output: { toxicity: 0.9 },
-      caller: { user_id: "u1", session_id: "s1", roles: ["user"] },
-    }));
+    const { status, data } = await request(
+      "POST",
+      "/v1/evaluate",
+      JSON.stringify({
+        action: "generate",
+        input: { prompt: "bad" },
+        output: { toxicity: 0.9 },
+        caller: { user_id: "u1", session_id: "s1", roles: ["user"] },
+      }),
+    );
     expect(status).toBe(200);
     expect(data.outcome).toBe("deny");
     expect(data.allowed).toBe(false);
@@ -121,12 +135,16 @@ describe("REST API Server", () => {
   });
 
   it("POST /v1/enforce returns 403 on block", async () => {
-    const { status, data } = await request("POST", "/v1/enforce", JSON.stringify({
-      action: "generate",
-      input: { prompt: "bad" },
-      output: { toxicity: 0.9 },
-      caller: { user_id: "u1", session_id: "s1", roles: ["user"] },
-    }));
+    const { status, data } = await request(
+      "POST",
+      "/v1/enforce",
+      JSON.stringify({
+        action: "generate",
+        input: { prompt: "bad" },
+        output: { toxicity: 0.9 },
+        caller: { user_id: "u1", session_id: "s1", roles: ["user"] },
+      }),
+    );
     expect(status).toBe(403);
     expect(data.error).toBe("policy_violation");
   });
@@ -151,12 +169,26 @@ describe("REST API Server", () => {
   });
 
   it("POST /v1/evaluate/batch evaluates multiple contexts", async () => {
-    const { status, data } = await request("POST", "/v1/evaluate/batch", JSON.stringify({
-      contexts: [
-        { action: "generate", input: {}, output: { toxicity: 0.1 }, caller: { user_id: "u1", session_id: "s1", roles: [] } },
-        { action: "generate", input: {}, output: { toxicity: 0.9 }, caller: { user_id: "u2", session_id: "s2", roles: [] } },
-      ],
-    }));
+    const { status, data } = await request(
+      "POST",
+      "/v1/evaluate/batch",
+      JSON.stringify({
+        contexts: [
+          {
+            action: "generate",
+            input: {},
+            output: { toxicity: 0.1 },
+            caller: { user_id: "u1", session_id: "s1", roles: [] },
+          },
+          {
+            action: "generate",
+            input: {},
+            output: { toxicity: 0.9 },
+            caller: { user_id: "u2", session_id: "s2", roles: [] },
+          },
+        ],
+      }),
+    );
     expect(status).toBe(200);
     expect(data.results.length).toBe(2);
     expect(data.results[0].allowed).toBe(true);

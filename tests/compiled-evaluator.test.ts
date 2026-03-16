@@ -1,11 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CompiledPolicyEvaluator } from "../src/engine/compiled-evaluator";
-import {
-  TrustContract,
-  PolicyRule,
-  PolicyContext,
-  PolicyConditionExpr,
-} from "../src/types";
+import { TrustContract, PolicyRule, PolicyContext, PolicyConditionExpr } from "../src/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -91,9 +86,7 @@ describe("CompiledPolicyEvaluator", () => {
       const result = compiled.compiledRules[0].evaluator(makeCtx());
       expect(result.passed).toBe(true);
 
-      const failResult = compiled.compiledRules[0].evaluator(
-        makeCtx({ input: { data_class: "pii" } }),
-      );
+      const failResult = compiled.compiledRules[0].evaluator(makeCtx({ input: { data_class: "pii" } }));
       expect(failResult.passed).toBe(false);
       expect(failResult.violations[0].field).toBe("input.data_class");
     });
@@ -137,9 +130,7 @@ describe("CompiledPolicyEvaluator", () => {
       const compiled = evaluator.compile(makeContract([rule]));
       expect(compiled.compiledRules[0].evaluator(makeCtx()).passed).toBe(true);
 
-      const failResult = compiled.compiledRules[0].evaluator(
-        makeCtx({ output: { confidence: 0.3 } }),
-      );
+      const failResult = compiled.compiledRules[0].evaluator(makeCtx({ output: { confidence: 0.3 } }));
       expect(failResult.passed).toBe(false);
     });
 
@@ -210,9 +201,7 @@ describe("CompiledPolicyEvaluator", () => {
       expect(compiled.compiledRules[0].evaluator(makeCtx()).passed).toBe(true);
 
       // Fail one condition
-      const failResult = compiled.compiledRules[0].evaluator(
-        makeCtx({ output: { confidence: 0.1 } }),
-      );
+      const failResult = compiled.compiledRules[0].evaluator(makeCtx({ output: { confidence: 0.1 } }));
       expect(failResult.passed).toBe(false);
     });
 
@@ -311,9 +300,7 @@ describe("CompiledPolicyEvaluator", () => {
   describe("rate limit handling", () => {
     it("rules with rate_limit are flagged with hasRateLimit: true", () => {
       const rule = makeRule({
-        conditions: [
-          { field: "caller.user_id", operator: "rate_limit", value: { max: 10, window: "PT1H" } },
-        ],
+        conditions: [{ field: "caller.user_id", operator: "rate_limit", value: { max: 10, window: "PT1H" } }],
       });
       const compiled = evaluator.compile(makeContract([rule]));
       expect(compiled.compiledRules[0].hasRateLimit).toBe(true);
@@ -321,9 +308,7 @@ describe("CompiledPolicyEvaluator", () => {
 
     it("rate limit rules still pass through evaluate (marked as passed placeholder)", async () => {
       const rule = makeRule({
-        conditions: [
-          { field: "caller.user_id", operator: "rate_limit", value: { max: 10, window: "PT1H" } },
-        ],
+        conditions: [{ field: "caller.user_id", operator: "rate_limit", value: { max: 10, window: "PT1H" } }],
       });
       const compiled = evaluator.compile(makeContract([rule]));
       const decision = await evaluator.evaluate(compiled, makeCtx());
@@ -362,9 +347,7 @@ describe("CompiledPolicyEvaluator", () => {
       const rule = makeRule({
         on_violation: "modify",
         conditions: [{ field: "input.data_class", operator: "equals", value: "impossible" }],
-        obligations: [
-          { obligation_id: "OBL-1", type: "redact", params: { fields: ["ssn"] } },
-        ],
+        obligations: [{ obligation_id: "OBL-1", type: "redact", params: { fields: ["ssn"] } }],
       });
       const compiled = evaluator.compile(makeContract([rule]));
       const decision = await evaluator.evaluate(compiled, makeCtx());
@@ -376,10 +359,7 @@ describe("CompiledPolicyEvaluator", () => {
     });
 
     it("tag filtering: includeTags", async () => {
-      const rules = [
-        makeRule({ id: "R-1", tags: ["safety"] }),
-        makeRule({ id: "R-2", tags: ["compliance"] }),
-      ];
+      const rules = [makeRule({ id: "R-1", tags: ["safety"] }), makeRule({ id: "R-2", tags: ["compliance"] })];
       const compiled = evaluator.compile(makeContract(rules));
       const decision = await evaluator.evaluate(compiled, makeCtx(), {
         includeTags: ["safety"],
@@ -389,10 +369,7 @@ describe("CompiledPolicyEvaluator", () => {
     });
 
     it("tag filtering: excludeTags", async () => {
-      const rules = [
-        makeRule({ id: "R-1", tags: ["safety"] }),
-        makeRule({ id: "R-2", tags: ["compliance"] }),
-      ];
+      const rules = [makeRule({ id: "R-1", tags: ["safety"] }), makeRule({ id: "R-2", tags: ["compliance"] })];
       const compiled = evaluator.compile(makeContract(rules));
       const decision = await evaluator.evaluate(compiled, makeCtx(), {
         excludeTags: ["safety"],

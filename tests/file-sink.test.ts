@@ -11,7 +11,11 @@ function tmpPath(name: string): string {
 function cleanup(...paths: string[]) {
   for (const p of paths) {
     for (const suffix of ["", ".1", ".2", ".3", ".4", ".5"]) {
-      try { unlinkSync(p + suffix); } catch { /* ignore */ }
+      try {
+        unlinkSync(p + suffix);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

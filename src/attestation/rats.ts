@@ -1,8 +1,20 @@
-import { createHash, randomBytes, sign as cryptoSign, verify as cryptoVerify, generateKeyPairSync, KeyObject } from "crypto";
 import {
-  AttestationChallenge, AttestationEvidence, AttestationClaim,
-  AttestationResult, AttestationPolicy, AppraisalResult,
-  AttestationOptions, PolicyContext,
+  createHash,
+  randomBytes,
+  sign as cryptoSign,
+  verify as cryptoVerify,
+  generateKeyPairSync,
+  KeyObject,
+} from "crypto";
+import {
+  AttestationChallenge,
+  AttestationEvidence,
+  AttestationClaim,
+  AttestationResult,
+  AttestationPolicy,
+  AppraisalResult,
+  AttestationOptions,
+  PolicyContext,
 } from "../types";
 import type { TrustAnchor } from "./trust-anchor";
 
@@ -81,7 +93,13 @@ export class AttestationService {
     if (evidenceTime - challengeTime > challenge.ttlMs) {
       return {
         status: "failure",
-        verified_claims: [{ type: "freshness", verified: false, detail: `Evidence collected ${evidenceTime - challengeTime}ms after challenge (TTL: ${challenge.ttlMs}ms)` }],
+        verified_claims: [
+          {
+            type: "freshness",
+            verified: false,
+            detail: `Evidence collected ${evidenceTime - challengeTime}ms after challenge (TTL: ${challenge.ttlMs}ms)`,
+          },
+        ],
         timestamp,
         nonce: challenge.nonce,
       };
@@ -142,7 +160,10 @@ export class AttestationService {
    */
   async collectEvidence(
     challenge: AttestationChallenge,
-    gov?: { getContracts(): ReadonlyArray<{ metadata: { name: string; version: string }; rules: unknown[] }>; getAuditEntries(): ReadonlyArray<{ hash: string }> },
+    gov?: {
+      getContracts(): ReadonlyArray<{ metadata: { name: string; version: string }; rules: unknown[] }>;
+      getAuditEntries(): ReadonlyArray<{ hash: string }>;
+    },
   ): Promise<AttestationEvidence> {
     const scope = challenge.scope ?? this.requiredClaims;
     const claims: AttestationClaim[] = [];
@@ -184,11 +205,13 @@ export class AttestationService {
 
     // Sign the claims
     const canonicalClaims = JSON.stringify(claims, Object.keys(claims).sort());
-    const signablePayload = Buffer.from(JSON.stringify({
-      challenge_nonce: challenge.nonce,
-      claims: canonicalClaims,
-      timestamp: now,
-    }));
+    const signablePayload = Buffer.from(
+      JSON.stringify({
+        challenge_nonce: challenge.nonce,
+        claims: canonicalClaims,
+        timestamp: now,
+      }),
+    );
 
     const signature = cryptoSign(null, signablePayload, this.privateKey);
 
@@ -261,11 +284,13 @@ export class AttestationService {
   private verifyEvidenceSignature(evidence: AttestationEvidence): boolean {
     try {
       const canonicalClaims = JSON.stringify(evidence.claims, Object.keys(evidence.claims).sort());
-      const signablePayload = Buffer.from(JSON.stringify({
-        challenge_nonce: evidence.challenge_nonce,
-        claims: canonicalClaims,
-        timestamp: evidence.timestamp,
-      }));
+      const signablePayload = Buffer.from(
+        JSON.stringify({
+          challenge_nonce: evidence.challenge_nonce,
+          claims: canonicalClaims,
+          timestamp: evidence.timestamp,
+        }),
+      );
 
       const pubKey = createPublicKeyFromHex(evidence.public_key);
       const sigBuf = Buffer.from(evidence.signature, "hex");
@@ -276,7 +301,9 @@ export class AttestationService {
   }
 
   private collectContractHashClaim(
-    gov: { getContracts(): ReadonlyArray<{ metadata: { name: string; version: string }; rules: unknown[] }> } | undefined,
+    gov:
+      | { getContracts(): ReadonlyArray<{ metadata: { name: string; version: string }; rules: unknown[] }> }
+      | undefined,
     timestamp: string,
   ): AttestationClaim {
     if (!gov) {
@@ -351,10 +378,7 @@ export class AttestationService {
     };
   }
 
-  private async collectTrustAnchorClaim(
-    challenge: AttestationChallenge,
-    timestamp: string,
-  ): Promise<AttestationClaim> {
+  private async collectTrustAnchorClaim(challenge: AttestationChallenge, timestamp: string): Promise<AttestationClaim> {
     if (!this.trustAnchor) {
       return {
         type: "trust_anchor",

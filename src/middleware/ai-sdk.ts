@@ -1,10 +1,5 @@
 import { GodClause } from "../governance";
-import {
-  PolicyContext,
-  PolicyDecision,
-  CallerInfo,
-  ActionVerb,
-} from "../types";
+import { PolicyContext, PolicyDecision, CallerInfo, ActionVerb } from "../types";
 import { PolicyViolationError } from "../engine/policy-engine";
 
 // ─── Generic AI Hook ─────────────────────────────────────────────────
@@ -39,10 +34,7 @@ export interface AIHookOptions {
  * Create a generic AI invocation hook that can be wired into any
  * AI SDK or custom model wrapper.
  */
-export function createAIHook(
-  gov: GodClause,
-  opts: AIHookOptions = {},
-): AIInvocationHook {
+export function createAIHook(gov: GodClause, opts: AIHookOptions = {}): AIInvocationHook {
   const defaultAction = opts.defaultAction ?? "generate";
 
   return {
@@ -60,9 +52,10 @@ export function createAIHook(
       const ctx: PolicyContext = {
         action: params.action ?? defaultAction,
         input: { prompt: params.prompt, model: params.model },
-        output: typeof params.response === "object" && params.response !== null
-          ? params.response as Record<string, unknown>
-          : { raw: params.response },
+        output:
+          typeof params.response === "object" && params.response !== null
+            ? (params.response as Record<string, unknown>)
+            : { raw: params.response },
         caller: params.caller,
         metadata: params.metadata,
       };
@@ -89,19 +82,13 @@ export interface LangChainHandlerOptions {
  * const chain = new LLMChain({ llm, callbacks: [handler] });
  * ```
  */
-export function createLangChainCallbackHandler(
-  gov: GodClause,
-  opts: LangChainHandlerOptions,
-) {
+export function createLangChainCallbackHandler(gov: GodClause, opts: LangChainHandlerOptions) {
   const action = opts.action ?? "generate";
 
   return {
     name: "GodClauseHandler",
 
-    async handleLLMStart(
-      llm: { name?: string } | undefined,
-      prompts: string[],
-    ): Promise<void> {
+    async handleLLMStart(llm: { name?: string } | undefined, prompts: string[]): Promise<void> {
       const ctx: PolicyContext = {
         action,
         input: { prompts, model: llm?.name },
@@ -110,9 +97,7 @@ export function createLangChainCallbackHandler(
       await gov.enforce(ctx);
     },
 
-    async handleLLMEnd(output: {
-      generations?: Array<Array<{ text?: string }>>;
-    }): Promise<void> {
+    async handleLLMEnd(output: { generations?: Array<Array<{ text?: string }>> }): Promise<void> {
       const text = output?.generations?.[0]?.[0]?.text ?? "";
       const ctx: PolicyContext = {
         action,
@@ -158,10 +143,7 @@ export interface VercelAIWrapperOptions {
  * });
  * ```
  */
-export function createVercelAIWrapper(
-  gov: GodClause,
-  opts: VercelAIWrapperOptions,
-) {
+export function createVercelAIWrapper(gov: GodClause, opts: VercelAIWrapperOptions) {
   const action = opts.action ?? "generate";
 
   return {
@@ -187,9 +169,7 @@ export function createVercelAIWrapper(
       const postCtx: PolicyContext = {
         action,
         input: { prompt: params.prompt, model: params.model },
-        output: typeof result === "object" && result !== null
-          ? result as Record<string, unknown>
-          : { raw: result },
+        output: typeof result === "object" && result !== null ? (result as Record<string, unknown>) : { raw: result },
         caller: opts.caller,
         metadata: params.metadata,
       };

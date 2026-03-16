@@ -12,10 +12,7 @@ export class DegradationManager {
   private currentTier: number = 0;
   private readonly onNotify?: (tier: DegradationTier) => void | Promise<void>;
 
-  constructor(
-    tiers: DegradationTier[],
-    onNotify?: (tier: DegradationTier) => void | Promise<void>,
-  ) {
+  constructor(tiers: DegradationTier[], onNotify?: (tier: DegradationTier) => void | Promise<void>) {
     // Ensure tiers are sorted ascending by tier number
     this.tiers = [...tiers].sort((a, b) => a.tier - b.tier);
     this.onNotify = onNotify;

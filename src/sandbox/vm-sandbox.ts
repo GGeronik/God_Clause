@@ -77,14 +77,10 @@ export class SandboxedEvaluator {
    * Evaluate a PolicyRule against a context using the sandbox.
    * Rules with conditions use sandboxed evaluation via generated JS expressions.
    */
-  async evaluateRule(
-    rule: PolicyRule,
-    context: PolicyContext,
-  ): Promise<RuleEvaluation> {
+  async evaluateRule(rule: PolicyRule, context: PolicyContext): Promise<RuleEvaluation> {
     // Check action match first
     const actions = Array.isArray(rule.action) ? rule.action : [rule.action];
-    const matches =
-      actions.includes("*") || actions.includes(context.action);
+    const matches = actions.includes("*") || actions.includes(context.action);
 
     if (!matches) {
       return {

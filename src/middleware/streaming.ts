@@ -1,10 +1,4 @@
-import type {
-  PolicyContext,
-  PolicyDecision,
-  CallerInfo,
-  ActionVerb,
-  Obligation,
-} from "../types";
+import type { PolicyContext, PolicyDecision, CallerInfo, ActionVerb, Obligation } from "../types";
 
 // Duck-typed interface to avoid coupling to the concrete GodClause class.
 export interface GovernanceEvaluator {

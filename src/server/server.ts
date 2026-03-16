@@ -43,10 +43,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
   if (auditDir) {
     const { MemoryAuditSink: MemSink } = require("../audit/audit-log");
-    govOpts.auditSinks = [
-      new MemSink(),
-      new FileAuditSink({ path: join(auditDir, "audit.jsonl") }),
-    ];
+    govOpts.auditSinks = [new MemSink(), new FileAuditSink({ path: join(auditDir, "audit.jsonl") })];
   }
 
   const gov = new GodClause(govOpts);
@@ -511,7 +508,11 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
         const result = await router.authorize(
           { tool_name: body.tool_name, arguments: body.arguments ?? {}, session_id: body.session_id ?? "unknown" },
-          { action: "mcp_call", input: body.arguments ?? {}, caller: body.caller ?? { user_id: "unknown", session_id: body.session_id ?? "unknown", roles: [] } },
+          {
+            action: "mcp_call",
+            input: body.arguments ?? {},
+            caller: body.caller ?? { user_id: "unknown", session_id: body.session_id ?? "unknown", roles: [] },
+          },
         );
 
         json(res, result.allowed ? 200 : 403, result);

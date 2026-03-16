@@ -5,10 +5,7 @@ import * as os from "os";
 import * as path from "path";
 import { AuditEntry } from "../src/types";
 import { AuditSink } from "../src/audit/audit-log";
-import {
-  ImmutableAuditSink,
-  ImmutabilityViolationError,
-} from "../src/audit/sinks/immutable-sink";
+import { ImmutableAuditSink, ImmutabilityViolationError } from "../src/audit/sinks/immutable-sink";
 
 let tmpDir: string;
 
