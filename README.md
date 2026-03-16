@@ -5,9 +5,9 @@
 > OPA does Allow/Deny. God Clause does Allow/Deny/**Modify** — redact PII, add disclaimers, truncate outputs, all in the critical path. Every decision is SHA-256 hash-chained. Every policy is cryptographically signed.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-green.svg)]()
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-green.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)]()
-[![Tests](https://img.shields.io/badge/tests-169%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-504%20passing-brightgreen.svg)]()
 
 ---
 
@@ -383,11 +383,28 @@ See [full API docs](./docs/) for server endpoints, CLI commands, and configurati
 ## Examples
 
 - **[Quick Start](./examples/quickstart.ts)** — 30-line PII redaction with audit verification
-- **[OpenAI Wrapper](./examples/openai-wrapper.ts)** — Governance around real LLM calls
-- **[Threat Contracts](./examples/threats/)** — 8 drop-in contracts for common AI threats
+- **[OpenAI Wrapper](./examples/openai-wrapper.ts)** — Governance around OpenAI calls
+- **[Claude Wrapper](./examples/anthropic-wrapper.ts)** — Governance around Anthropic Claude calls
+- **[Gemini Wrapper](./examples/gemini-wrapper.ts)** — Governance around Google Gemini calls
+- **[MCP Agent Demo](./examples/mcp-agent-demo.ts)** — MCP tool authorization with fail-closed routing
+- **[Threat Contracts](./examples/threats/)** — 9 drop-in contracts for common AI threats
 - **[Healthcare AI](./examples/healthcare-ai.contract.yaml)** — PHI protection, human-in-the-loop
 - **[Financial Services](./examples/financial-services.contract.yaml)** — Regulatory compliance
 - **[LLM Safety](./examples/llm-safety.contract.yaml)** — Prompt injection, toxicity, hallucination
+
+---
+
+## AI Onboarding
+
+This repo ships with context files so any AI coding assistant can understand the project immediately:
+
+| File | Assistant | What it does |
+|------|-----------|--------------|
+| [`CLAUDE.md`](./CLAUDE.md) | Claude Code | Auto-read on session start — full architecture, commands, patterns, and rules |
+| [`.cursorrules`](./.cursorrules) | Cursor IDE | Quick reference with architecture map and 9 development rules |
+| [`.github/copilot-instructions.md`](./.github/copilot-instructions.md) | GitHub Copilot | Key files, code style, and domain concepts |
+
+**Try it**: Open the project in Claude Code and ask *"What is this project?"* — it already knows.
 
 ---
 
