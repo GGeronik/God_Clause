@@ -1,0 +1,96 @@
+# Data Leakage Prevention Contract
+# Drop-in protection: prevent internal/confidential data from appearing in AI outputs.
+#
+# Usage:
+#   gov.loadContractYAML(fs.readFileSync("data-leakage.contract.yaml", "utf-8"));
+#
+# Your application must:
+#   1. Set output.data_classification with the detected class (public/internal/confidential/restricted)
+#   2. Set output.contains_internal_data boolean
+#   3. Set metadata.destination with the output destination (internal/external/public)
+#
+# Compliance: SOC 2 CC6.1, GDPR Art 32, ISO 27001 A.8.2, NIST AI RMF
+
+schema_version: "1.0"
+metadata:
+  name: Data Leakage Prevention
+  version: "1.0.0"
+  author: Security Team
+  description: >
+    Prevent internal, confidential, or restricted data from leaking through
+    AI-generated outputs. Enforces data classification boundaries and
+    cross-border data transfer restrictions.
+  effective_date: "2025-01-01"
+  review_date: "2025-04-01"
+  stakeholders: [CISO, DPO, Compliance Officer]
+
+data_governance:
+  allowed_input_classes: [public, internal, confidential]
+  allowed_output_classes: [public]
+  retention_period: P365D
+  cross_border_transfer: false
+
+rules:
+  - id: DLP-001
+    description: Block confidential data in outputs
+    action: "*"
+    conditions:
+      - field: output.data_classification
+        operator: not_in
+        value: ["confidential", "restricted"]
+    on_violation: block
+    message: "Confidential or restricted data detected in output — blocked"
+    tags: [data-leakage, classification, critical]
+
+  - id: DLP-002
+    description: Block internal data in external-facing outputs
+    action: generate
+    conditions:
+      - any:
+          - field: output.contains_internal_data
+            operator: equals
+            value: false
+          - field: metadata.destination
+            operator: equals
+            value: "internal"
+    on_violation: block
+    message: "Internal data cannot be sent to external destinations"
+    tags: [data-leakage, classification]
+
+  - id: DLP-003
+    description: Warn when data classification is unknown
+    action: "*"
+    conditions:
+      - field: output.data_classification
+        operator: exists
+        value: true
+    on_violation: warn
+    message: "Output data classification not set — cannot verify data boundaries"
+    tags: [data-leakage, classification, monitoring]
+
+  - id: DLP-004
+    description: Block cross-border data transfer
+    action: "*"
+    conditions:
+      - field: metadata.cross_border
+        operator: not_equals
+        value: true
+    on_violation: block
+    message: "Cross-border data transfer not permitted by this contract"
+    tags: [data-leakage, gdpr, cross-border]
+
+  - id: DLP-005
+    description: Redact internal identifiers from outputs
+    action: generate
+    conditions:
+      - field: output.contains_internal_ids
+        operator: equals
+        value: false
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-REDACT-IDS
+        type: redact_pii
+        params:
+          replacement: "[INTERNAL ID REDACTED]"
+          fields: [employee_id, account_number, internal_ref]
+    tags: [data-leakage, privacy]

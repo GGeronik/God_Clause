@@ -1,0 +1,82 @@
+schema_version: "1.0"
+
+metadata:
+  name: Healthcare AI Governance
+  version: "1.0.0"
+  author: Compliance Team
+  description: >
+    Governs AI-assisted clinical decision support. Ensures PHI stays protected,
+    outputs include mandatory disclaimers, and high-risk decisions require
+    human-in-the-loop confirmation.
+  effective_date: "2026-01-01"
+  review_date: "2026-06-01"
+  stakeholders:
+    - Chief Medical Officer
+    - Data Protection Officer
+    - AI Ethics Board
+
+data_governance:
+  allowed_input_classes:
+    - phi
+    - internal
+  allowed_output_classes:
+    - internal
+    - public
+  retention_period: P90D
+  cross_border_transfer: false
+
+rules:
+  - id: HC-001
+    description: PHI must not appear in model outputs
+    action: "*"
+    conditions:
+      - field: output.contains_phi
+        operator: equals
+        value: false
+    on_violation: block
+    tags: [hipaa, data-protection]
+
+  - id: HC-002
+    description: Clinical decisions require human-in-the-loop flag
+    action: decide
+    conditions:
+      - field: metadata.human_in_loop
+        operator: equals
+        value: true
+    on_violation: block
+    tags: [safety, clinical]
+
+  - id: HC-003
+    description: Output confidence must exceed 0.85 for clinical recommendations
+    action: recommend
+    conditions:
+      - field: output.confidence
+        operator: greater_than
+        value: 0.85
+    on_violation: warn
+    tags: [quality, clinical]
+
+  - id: HC-004
+    description: All outputs must include a medical disclaimer
+    action:
+      - generate
+      - recommend
+      - summarize
+    conditions:
+      - field: output.disclaimer_present
+        operator: equals
+        value: true
+    on_violation: block
+    tags: [compliance, liability]
+
+  - id: HC-005
+    description: Caller must have clinician role for clinical actions
+    action:
+      - decide
+      - recommend
+    conditions:
+      - field: caller.roles
+        operator: contains
+        value: clinician
+    on_violation: block
+    tags: [access-control]

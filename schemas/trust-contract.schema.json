@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://god-clause.dev/schemas/trust-contract.schema.json",
+  "title": "God Clause Trust Contract",
+  "description": "Schema for human-readable AI governance trust contracts with composite condition support",
+  "type": "object",
+  "required": ["schema_version", "metadata", "data_governance", "rules"],
+  "additionalProperties": false,
+  "$defs": {
+    "conditionExpr": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["field", "operator", "value"],
+          "additionalProperties": false,
+          "description": "Leaf condition: compare a field value",
+          "properties": {
+            "field": { "type": "string", "description": "Dot-notation path (e.g. output.confidence)" },
+            "operator": {
+              "type": "string",
+              "enum": ["equals", "not_equals", "contains", "not_contains", "greater_than", "less_than", "in", "not_in", "matches", "exists", "not_exists"]
+            },
+            "value": { "description": "Value to compare against" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["all"],
+          "additionalProperties": false,
+          "description": "All child conditions must pass (AND)",
+          "properties": {
+            "all": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/conditionExpr" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["any"],
+          "additionalProperties": false,
+          "description": "At least one child condition must pass (OR)",
+          "properties": {
+            "any": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/conditionExpr" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["not"],
+          "additionalProperties": false,
+          "description": "The child condition must NOT pass (NOT)",
+          "properties": {
+            "not": { "$ref": "#/$defs/conditionExpr" }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Semantic version of the contract schema"
+    },
+    "plain_language_summary": {
+      "type": "string",
+      "description": "Human-readable plain-language summary"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "version", "author", "description", "effective_date"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "author": { "type": "string" },
+        "description": { "type": "string" },
+        "effective_date": { "type": "string", "format": "date" },
+        "review_date": { "type": "string", "format": "date" },
+        "stakeholders": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "data_governance": {
+      "type": "object",
+      "required": ["allowed_input_classes", "allowed_output_classes", "retention_period", "cross_border_transfer"],
+      "properties": {
+        "allowed_input_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["pii", "phi", "financial", "credentials", "public", "internal", "confidential"]
+          }
+        },
+        "allowed_output_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["pii", "phi", "financial", "credentials", "public", "internal", "confidential"]
+          }
+        },
+        "retention_period": {
+          "type": "string",
+          "description": "ISO 8601 duration (e.g. P30D, P1Y)"
+        },
+        "cross_border_transfer": {
+          "type": "boolean"
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "action", "conditions", "on_violation"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "action": {
+            "description": "AI action verb(s) this rule governs. Use '*' for all actions. Custom verbs are accepted.",
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          },
+          "conditions": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/conditionExpr" }
+          },
+          "on_violation": {
+            "type": "string",
+            "enum": ["block", "warn", "log"]
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

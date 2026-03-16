@@ -1,0 +1,89 @@
+schema_version: "1.0"
+
+metadata:
+  name: Financial AI Governance (Composite)
+  version: "1.0.0"
+  author: Risk & Compliance Team
+  description: >
+    Demonstrates composite AND/OR/NOT conditions for nuanced financial
+    AI governance. Uses nested boolean logic to express policies that
+    can't be captured with flat condition lists.
+  effective_date: "2026-03-01"
+  stakeholders:
+    - Chief Risk Officer
+    - Head of AI
+
+data_governance:
+  allowed_input_classes:
+    - financial
+    - internal
+    - public
+  allowed_output_classes:
+    - internal
+    - public
+  retention_period: P7Y
+  cross_border_transfer: false
+
+rules:
+  - id: FIN-001
+    description: >
+      High-value decisions require either a senior analyst role
+      OR both a junior analyst with manager approval.
+    action: decide
+    conditions:
+      - any:
+          - field: caller.roles
+            operator: contains
+            value: senior_analyst
+          - all:
+              - field: caller.roles
+                operator: contains
+                value: junior_analyst
+              - field: metadata.manager_approved
+                operator: equals
+                value: true
+    on_violation: block
+    tags: [access-control, escalation]
+
+  - id: FIN-002
+    description: >
+      Recommendations must NOT be flagged as potentially biased,
+      and must have confidence above 0.8.
+    action: recommend
+    conditions:
+      - all:
+          - not:
+              field: output.bias_flag
+              operator: equals
+              value: true
+          - field: output.confidence
+            operator: greater_than
+            value: 0.8
+    on_violation: block
+    tags: [fairness, quality]
+
+  - id: FIN-003
+    description: >
+      Fraud detection actions must include either a model version tag
+      or an explicit override from compliance.
+    action: classify
+    conditions:
+      - any:
+          - field: metadata.model_version
+            operator: exists
+            value: true
+          - field: metadata.compliance_override
+            operator: equals
+            value: true
+    on_violation: warn
+    tags: [traceability, model-governance]
+
+  - id: FIN-004
+    description: Log all actions that process amounts over $1M for audit review
+    action: "*"
+    conditions:
+      - field: input.amount
+        operator: less_than
+        value: 1000000
+    on_violation: log
+    tags: [audit, high-value]

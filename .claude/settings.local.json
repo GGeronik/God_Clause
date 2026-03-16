@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pandoc \"/Users/gg/Downloads/Building Embeddable AI Governance Framework.docx\" -t plain --wrap=none)",
+      "Bash(python3 -c \":*)",
+      "Read(//Users/gg/Downloads/**)",
+      "Bash(npx vite:*)",
+      "Bash(grep -v \"^\\\\.$\")",
+      "Bash(grep -v \"^\\\\.\\\\.$\")",
+      "Bash(grep -v \"^src$\")",
+      "Bash(wc -l src/**/*.ts)",
+      "Bash(grep -l \"linter\\\\|cli\" tests/*.test.ts)",
+      "Bash(grep -l \"crypto\\\\|dsse\\\\|timestamp\" tests/*.test.ts)",
+      "Bash(npx eslint:*)",
+      "Bash(node dist/cli/index.js validate examples/threats/pii-redaction.contract.yaml)",
+      "Bash(sed -i '' 's/operator: exists$/operator: exists\\\\n        value: true/' examples/threats/anti-hallucination.contract.yaml examples/threats/bias-detection.contract.yaml examples/threats/data-leakage.contract.yaml)",
+      "Bash(sed -i '' 's/operator: not_exists$/operator: not_exists\\\\n        value: true/' examples/threats/copyright-protection.contract.yaml)",
+      "Bash(node dist/cli/index.js validate examples/threats/copyright-protection.contract.yaml)",
+      "Bash(node dist/cli/index.js validate examples/templates/base-compliance.contract.yaml)",
+      "Bash(done)",
+      "Bash(node dist/cli/index.js validate examples/llm-safety.contract.yaml)",
+      "Bash(node dist/cli/index.js validate examples/ecommerce.contract.yaml)",
+      "Bash(node dist/cli/index.js validate examples/financial-services.contract.yaml)",
+      "Bash(brew install:*)",
+      "Bash(pdftoppm -v)",
+      "Bash(pdftotext \"/Users/gg/Downloads/Implementation Spec for Claude Code.pdf\" -)",
+      "Bash(find '/Users/gg/Cursor-Github/God Clause' -type f \\\\\\(-name *.rs -o -name *.go -o -name *.lean \\\\\\))",
+      "Bash(npm test:*)",
+      "Bash(xargs ls:*)",
+      "Bash(find src:*)",
+      "Bash(find tests:*)",
+      "Bash(find examples:*)"
+    ]
+  }
+}

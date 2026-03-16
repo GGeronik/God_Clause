@@ -1,0 +1,48 @@
+replicaCount: 1
+
+image:
+  repository: god-clause
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 3000
+
+server:
+  port: 3000
+  logLevel: "info"
+  # HMAC secret for audit chain signing
+  # Use existingSecret instead for production
+  hmacSecret: ""
+  existingSecret: ""
+  existingSecretKey: "hmac-secret"
+
+audit:
+  # Directory for audit log files inside the container
+  dir: "/data/audit"
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+contracts:
+  # Mount contracts from a ConfigMap
+  configMapName: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}

@@ -1,0 +1,108 @@
+# Cost Control Contract
+# Drop-in protection: rate limit users, enforce token caps, restrict expensive models.
+#
+# Usage:
+#   gov.loadContractYAML(fs.readFileSync("cost-control.contract.yaml", "utf-8"));
+#   // Requires a StateStore for rate limiting:
+#   const gov = new GodClause({ stateStore: new MemoryStateStore() });
+#
+# Your application must:
+#   1. Set output.token_count with the response token count
+#   2. Set metadata.model with the model name being used
+#   3. Set metadata.estimated_cost_usd if cost estimation is available
+#
+# Compliance: SOC 2 CC6.6 (system operations), internal cost governance
+
+schema_version: "1.0"
+metadata:
+  name: Cost Control
+  version: "1.0.0"
+  author: Platform Team
+  description: >
+    Control AI usage costs through rate limiting, token caps, and model
+    restrictions. Prevents runaway spending from individual users or
+    misconfigured batch jobs.
+  effective_date: "2025-01-01"
+  review_date: "2025-04-01"
+  stakeholders: [VP Engineering, Finance, Platform Lead]
+
+data_governance:
+  allowed_input_classes: [public, internal]
+  allowed_output_classes: [public, internal]
+  retention_period: P30D
+  cross_border_transfer: true
+
+rules:
+  - id: COST-001
+    description: Rate limit per user — 100 requests per hour
+    action: "*"
+    conditions:
+      - field: caller.user_id
+        operator: rate_limit
+        value:
+          max: 100
+          window: PT1H
+    on_violation: block
+    message: "Rate limit exceeded — max 100 requests per hour"
+    tags: [cost-control, rate-limit]
+
+  - id: COST-002
+    description: Rate limit per user — 1000 requests per day
+    action: "*"
+    conditions:
+      - field: caller.user_id
+        operator: rate_limit
+        value:
+          max: 1000
+          window: P1D
+    on_violation: block
+    message: "Daily rate limit exceeded — max 1000 requests per day"
+    tags: [cost-control, rate-limit]
+
+  - id: COST-003
+    description: Enforce output token limit
+    action: generate
+    conditions:
+      - field: output.token_count
+        operator: less_than
+        value: 4096
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-TRUNCATE
+        type: truncate_output
+        params:
+          max_tokens: 4096
+    tags: [cost-control, token-limit]
+
+  - id: COST-004
+    description: Block extremely long outputs
+    action: generate
+    conditions:
+      - field: output.token_count
+        operator: less_than
+        value: 16384
+    on_violation: block
+    message: "Output exceeds maximum token limit (16384)"
+    tags: [cost-control, token-limit, critical]
+
+  - id: COST-005
+    description: Warn on high-cost requests
+    action: generate
+    conditions:
+      - field: metadata.estimated_cost_usd
+        operator: less_than
+        value: 1.0
+    on_violation: warn
+    message: "Request estimated cost exceeds $1.00"
+    tags: [cost-control, budget]
+
+  - id: COST-006
+    description: Block very high-cost requests
+    action: generate
+    conditions:
+      - field: metadata.estimated_cost_usd
+        operator: less_than
+        value: 10.0
+    on_violation: block
+    message: "Request estimated cost exceeds $10.00 — requires approval"
+    tags: [cost-control, budget, critical]

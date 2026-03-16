@@ -1,0 +1,135 @@
+# MCP Tool Abuse Prevention Contract
+# Drop-in protection: governs which MCP (Model Context Protocol) tools an LLM agent
+# can invoke, with what frequency, and under what conditions.
+#
+# Why this matters:
+#   Without explicit tool governance, any MCP tool your agent can *see*, it can *call*.
+#   A single unguarded autonomous loop can DROP TABLE production, exfiltrate files via
+#   shell commands, or burn through API quotas in seconds. This contract makes tool
+#   access fail-closed: tools are denied by default unless an explicit permission grants
+#   access. Permissions are evaluated first-match-wins, so put your most restrictive
+#   rules at the top.
+#
+# Usage:
+#   gov.loadContractYAML(fs.readFileSync("mcp-tool-abuse.contract.yaml", "utf-8"));
+#
+# Your application must:
+#   1. Set metadata.mcp_tool with the tool name being invoked (e.g. "database.query")
+#   2. Set metadata.data_classification if the tool accesses classified data
+#   3. Implement a human-approval callback for tools marked require_human_approval
+#   4. Connect an audit sink — every tool invocation is logged by this contract
+#
+# Compliance: SOC 2 CC6.1, NIST AI RMF MAP 1.5, EU AI Act Art 14 (human oversight)
+
+schema_version: "1.0"
+metadata:
+  name: MCP Tool Abuse Prevention
+  version: "1.0.0"
+  author: Security Team
+  description: >
+    Controls which MCP tools an autonomous AI agent may invoke. Enforces
+    least-privilege access, rate limits, human-in-the-loop approval for
+    destructive operations, and full audit logging. Designed for fail-closed
+    safety: any tool not explicitly permitted is denied.
+  effective_date: "2025-01-01"
+  review_date: "2025-07-01"
+  stakeholders: [CISO, Engineering Lead, AI Safety Lead]
+
+data_governance:
+  allowed_input_classes: [public, internal, confidential]
+  allowed_output_classes: [public, internal]
+  retention_period: P365D
+  cross_border_transfer: false
+
+rules:
+  - id: MCP-AUDIT-001
+    description: Log all MCP tool invocations for audit trail
+    action: "*"
+    conditions:
+      - field: metadata.mcp_tool
+        operator: exists
+        value: true
+    on_violation: warn
+    message: "MCP tool invocation logged for audit"
+    tags: [mcp, audit, observability]
+
+  - id: MCP-PRIV-001
+    description: Block MCP tools from accessing classified data
+    action: "*"
+    conditions:
+      - field: metadata.data_classification
+        operator: not_in
+        value: [classified, top_secret]
+    on_violation: block
+    message: "MCP tool access to classified data is prohibited"
+    tags: [mcp, data-classification, critical]
+
+  - id: MCP-PRIV-002
+    description: Block MCP tool invocations that lack a tool name
+    action: "*"
+    conditions:
+      - field: metadata.mcp_tool
+        operator: exists
+        value: true
+    on_violation: block
+    message: "MCP tool invocation missing tool identifier — denied"
+    tags: [mcp, validation, critical]
+
+# ─── MCP Permissions (first-match-wins) ─────────────────────────────
+# Each entry is evaluated in order. The first matching tool_pattern decides
+# the outcome. If nothing matches, the catch-all at the bottom denies.
+
+mcp_permissions:
+  # Destructive database operations — always blocked
+  - tool_pattern: "database.drop_table"
+    allowed: false
+    audit_level: full
+
+  - tool_pattern: "database.truncate"
+    allowed: false
+    audit_level: full
+
+  # Deletes are allowed but require a human to confirm
+  - tool_pattern: "database.delete"
+    allowed: true
+    require_human_approval: true
+    audit_level: full
+
+  # All other database operations — allowed with session rate limit
+  - tool_pattern: "database.*"
+    allowed: true
+    max_calls_per_session: 50
+    audit_level: full
+
+  # File writes require human approval (prevent data exfiltration / overwrite)
+  - tool_pattern: "file_write.*"
+    allowed: true
+    require_human_approval: true
+    audit_level: full
+
+  # File reads are generally safe — allow with summary logging
+  - tool_pattern: "file_read.*"
+    allowed: true
+    audit_level: summary
+
+  # Web search — allowed with rate limit to prevent abuse
+  - tool_pattern: "web_search"
+    allowed: true
+    max_calls_per_session: 20
+    audit_level: summary
+
+  # Shell commands — never let an LLM execute arbitrary shell commands
+  - tool_pattern: "shell.*"
+    allowed: false
+    audit_level: full
+
+  # External API calls — allowed with generous rate limit
+  - tool_pattern: "api.*"
+    allowed: true
+    max_calls_per_session: 100
+    audit_level: summary
+
+  # Catch-all: explicit fail-closed — deny everything not matched above
+  - tool_pattern: "*"
+    allowed: false
+    audit_level: full

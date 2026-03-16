@@ -1,0 +1,126 @@
+# Base Safety Contract — Universal Safety Baseline
+# Designed to be extended by domain-specific contracts using the `extends` field.
+#
+# This template provides fundamental safety guardrails that apply to ALL AI systems:
+# - Toxicity filtering
+# - PII redaction
+# - Prompt injection defense
+# - Rate limiting
+# - Output length control
+#
+# Usage:
+#   # Load as-is for immediate protection:
+#   gov.loadContractYAML(fs.readFileSync("base-safety.contract.yaml", "utf-8"));
+#
+#   # Or extend in a child contract:
+#   extends: "Base Safety Policy"
+#   metadata:
+#     name: Healthcare Safety
+#   rules:
+#     - id: HC-001  # Additional rules merged with base
+
+schema_version: "1.0"
+metadata:
+  name: Base Safety Policy
+  version: "1.0.0"
+  author: AI Safety Team
+  description: >
+    Universal safety baseline for any AI system. Covers toxicity, PII,
+    prompt injection, rate limiting, and output length control. Extend
+    this contract for domain-specific requirements.
+  effective_date: "2025-01-01"
+  review_date: "2025-07-01"
+  stakeholders: [VP Engineering, AI Safety Lead, Legal]
+
+data_governance:
+  allowed_input_classes: [public, internal]
+  allowed_output_classes: [public]
+  retention_period: P90D
+  cross_border_transfer: false
+
+rules:
+  # --- Content Safety ---
+  - id: BASE-SAFETY-001
+    description: Block toxic content
+    action: generate
+    conditions:
+      - field: output.toxicity_score
+        operator: less_than
+        value: 0.5
+    on_violation: block
+    message: "Output toxicity exceeds safety threshold"
+    tags: [safety, toxicity, baseline]
+
+  # --- Privacy ---
+  - id: BASE-PII-001
+    description: Redact PII from outputs
+    action: generate
+    conditions:
+      - field: output.contains_pii
+        operator: equals
+        value: false
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-BASE-REDACT
+        type: redact_pii
+        params:
+          replacement: "[REDACTED]"
+    tags: [privacy, pii, baseline]
+
+  # --- Security ---
+  - id: BASE-INJ-001
+    description: Block prompt injection attempts
+    action: "*"
+    conditions:
+      - field: input.injection_score
+        operator: less_than
+        value: 0.7
+    on_violation: block
+    message: "Prompt injection detected"
+    tags: [security, prompt-injection, baseline]
+
+  # --- Rate Limiting ---
+  - id: BASE-RATE-001
+    description: Per-user rate limit (60/minute)
+    action: "*"
+    conditions:
+      - field: caller.user_id
+        operator: rate_limit
+        value:
+          max: 60
+          window: PT1M
+    on_violation: block
+    message: "Rate limit exceeded"
+    tags: [rate-limit, abuse-prevention, baseline]
+
+  # --- Output Control ---
+  - id: BASE-LEN-001
+    description: Enforce output token limit
+    action: generate
+    conditions:
+      - field: output.token_count
+        operator: less_than
+        value: 8192
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-BASE-TRUNCATE
+        type: truncate_output
+        params:
+          max_tokens: 8192
+    tags: [cost-control, baseline]
+
+  # --- Quality ---
+  - id: BASE-CONF-001
+    description: Disclaim low-confidence outputs
+    action: generate
+    conditions:
+      - field: output.confidence
+        operator: greater_than
+        value: 0.6
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-BASE-DISCLAIMER
+        type: prepend_disclaimer
+        params:
+          text: "Note: This response may contain inaccuracies. Please verify independently."
+    tags: [quality, hallucination, baseline]

@@ -1,0 +1,102 @@
+# PII Redaction Contract
+# Drop-in protection: detects PII in AI outputs and triggers redaction obligations.
+# Covers: SSNs, email addresses, phone numbers, credit card numbers, names.
+#
+# Usage:
+#   gov.loadContractYAML(fs.readFileSync("pii-redaction.contract.yaml", "utf-8"));
+#
+# Your application must:
+#   1. Set output.contains_pii, output.contains_ssn, etc. based on your PII detector
+#   2. Handle "redact_pii" obligations by replacing matched patterns with [REDACTED]
+#
+# Compliance: GDPR Art 32, HIPAA, SOC 2 CC6.1, EU AI Act Art 10
+
+schema_version: "1.0"
+metadata:
+  name: PII Redaction
+  version: "1.0.0"
+  author: Security Team
+  description: >
+    Automatically detect and redact personally identifiable information (PII)
+    from AI-generated outputs. Uses modify obligations to transform outputs
+    rather than blocking users.
+  effective_date: "2025-01-01"
+  review_date: "2025-07-01"
+  stakeholders: [CISO, DPO, Engineering Lead]
+
+data_governance:
+  allowed_input_classes: [public, internal, pii]
+  allowed_output_classes: [public]
+  retention_period: P90D
+  cross_border_transfer: false
+
+rules:
+  - id: PII-001
+    description: Redact any PII detected in outputs
+    action: generate
+    conditions:
+      - field: output.contains_pii
+        operator: equals
+        value: false
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-REDACT-PII
+        type: redact_pii
+        params:
+          replacement: "[REDACTED]"
+          fields: [ssn, email, phone, credit_card, name, address]
+    tags: [privacy, pii, gdpr, hipaa]
+
+  - id: PII-002
+    description: Block outputs containing Social Security Numbers
+    action: "*"
+    conditions:
+      - field: output.contains_ssn
+        operator: equals
+        value: false
+    on_violation: block
+    message: "Output contains Social Security Number — blocked"
+    tags: [privacy, pii, critical]
+
+  - id: PII-003
+    description: Block outputs containing credit card numbers
+    action: "*"
+    conditions:
+      - field: output.contains_credit_card
+        operator: equals
+        value: false
+    on_violation: block
+    message: "Output contains credit card number — blocked"
+    tags: [privacy, pci-dss, critical]
+
+  - id: PII-004
+    description: Warn when email addresses appear in outputs
+    action: generate
+    conditions:
+      - field: output.contains_email
+        operator: equals
+        value: false
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-REDACT-EMAIL
+        type: redact_pii
+        params:
+          replacement: "[EMAIL REDACTED]"
+          fields: [email]
+    tags: [privacy, pii]
+
+  - id: PII-005
+    description: Log when phone numbers appear (for audit trail)
+    action: generate
+    conditions:
+      - field: output.contains_phone
+        operator: equals
+        value: false
+    on_violation: modify
+    obligations:
+      - obligation_id: OBL-REDACT-PHONE
+        type: redact_pii
+        params:
+          replacement: "[PHONE REDACTED]"
+          fields: [phone]
+    tags: [privacy, pii]

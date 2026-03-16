@@ -1,0 +1,14 @@
+apiVersion: v2
+name: god-clause
+description: AI governance framework — trust contracts, runtime enforcement, and auditability
+type: application
+version: 1.0.0
+appVersion: "2.0.0"
+keywords:
+  - ai-governance
+  - policy-enforcement
+  - trust-contracts
+  - audit
+home: https://github.com/god-clause/god-clause
+maintainers:
+  - name: God Clause Team
