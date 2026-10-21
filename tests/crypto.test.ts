@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generateKeyPairSync } from "crypto";
 import { signContract, verifyContractSignature, contractFingerprint } from "../src/crypto/dsse";
-import { createLocalTimestamp, verifyTimestampConsistency } from "../src/crypto/timestamp";
 import { parseContract } from "../src/contracts/parser";
 
 const CONTRACT_YAML = `
@@ -122,33 +121,5 @@ describe("Contract Fingerprint", () => {
     const contract2 = parseContract(CONTRACT_YAML.replace("Crypto Test", "Different Name"));
 
     expect(contractFingerprint(contract1)).not.toBe(contractFingerprint(contract2));
-  });
-});
-
-describe("Local Timestamps", () => {
-  it("creates a local timestamp token", () => {
-    const token = createLocalTimestamp("abc123merkleroot");
-
-    expect(token.merkle_root).toBe("abc123merkleroot");
-    expect(token.tsa_url).toBe("local");
-    expect(token.tst_base64).toBeTruthy();
-    expect(token.tst_hash).toHaveLength(64);
-    expect(token.timestamp).toBeTruthy();
-  });
-
-  it("verifies timestamp consistency", () => {
-    const token = createLocalTimestamp("merkle-root-hash");
-    expect(verifyTimestampConsistency(token, "merkle-root-hash")).toBe(true);
-  });
-
-  it("rejects mismatched merkle root", () => {
-    const token = createLocalTimestamp("original-root");
-    expect(verifyTimestampConsistency(token, "different-root")).toBe(false);
-  });
-
-  it("rejects tampered tst_hash", () => {
-    const token = createLocalTimestamp("merkle-root");
-    const tampered = { ...token, tst_hash: "0".repeat(64) };
-    expect(verifyTimestampConsistency(tampered, "merkle-root")).toBe(false);
   });
 });

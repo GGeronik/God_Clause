@@ -10,8 +10,6 @@ export { trustContractSchema } from "./contracts/schema";
 export { ContractRegistry } from "./contracts/registry";
 export { ContractWatcher } from "./contracts/watcher";
 export type { WatcherOptions } from "./contracts/watcher";
-export { ContractChangeLog } from "./contracts/changelog";
-export type { ContractChangeEvent, ContractChangeType, ChangeLogQuery } from "./contracts/changelog";
 
 // Policy Engine
 export { PolicyEngine, PolicyViolationError } from "./engine/policy-engine";
@@ -22,10 +20,6 @@ export type { ConditionResult, EvaluatorContext } from "./engine/evaluator";
 // State Store (rate limiting)
 export { MemoryStateStore, parseISO8601Duration } from "./engine/state-store";
 export type { StateStore } from "./engine/state-store";
-
-// Decision Cache
-export { DecisionCache } from "./engine/cache";
-export type { CacheOptions } from "./engine/cache";
 
 // Audit
 export { AuditLog, MemoryAuditSink } from "./audit/audit-log";
@@ -76,19 +70,6 @@ export type { LogLevel, LoggerOptions } from "./observability/logger";
 // Cryptographic Signing
 export { signContract, verifyContractSignature, contractFingerprint, paeEncode } from "./crypto/dsse";
 export type { DSSEEnvelope, SigningOptions, VerifyOptions } from "./crypto/dsse";
-export { requestTimestamp, verifyTimestampConsistency, createLocalTimestamp } from "./crypto/timestamp";
-export type { TimestampToken, TimestampRequestOptions } from "./crypto/timestamp";
-
-// Compliance
-export { generateComplianceReport } from "./compliance/reporter";
-export type {
-  ComplianceReport,
-  ComplianceControl,
-  ComplianceFramework,
-  ControlStatus,
-  ReportOptions,
-} from "./compliance/reporter";
-export { TLAPlusGenerator } from "./compliance/tlaplus-generator";
 
 // Notifications
 export { WebhookNotifier } from "./notifications/webhook";
@@ -98,30 +79,9 @@ export type { WebhookConfig, WebhookEvent } from "./notifications/webhook";
 export { lintContract } from "./cli/linter";
 export type { LintResult, LintSeverity } from "./cli/linter";
 
-// Zero-Trust Engine Modules
+// Engine Modules
 export { MCPRouter } from "./engine/mcp-router";
 export { ModelBindingVerifier } from "./engine/model-binding";
-export { SecureBoot } from "./engine/boot";
-export type { SecureBootOptions } from "./engine/boot";
-export { DegradationManager } from "./engine/degradation";
-export { HumanOverrideManager, generateEd25519KeyPair, signOverridePayload } from "./engine/human-override";
-export { CompiledPolicyEvaluator } from "./engine/compiled-evaluator";
-
-// Sandbox
-export { WasmPolicySandbox } from "./sandbox/wasm-sandbox";
-export { SandboxedEvaluator } from "./sandbox/vm-sandbox";
-
-// Attestation
-export { AttestationService } from "./attestation/rats";
-export {
-  SoftwareTrustAnchor,
-  TPMTrustAnchor,
-  SGXTrustAnchor,
-  FirecrackerTrustAnchor,
-  createTrustAnchor,
-  NotImplementedError,
-} from "./attestation/trust-anchor";
-export type { TrustAnchor } from "./attestation/trust-anchor";
 
 // Proof Bundle
 export { ProofBundleBuilder } from "./audit/proof-bundle";
@@ -129,12 +89,6 @@ export { ProofBundleBuilder } from "./audit/proof-bundle";
 // Signed Policy Bundles
 export { packBundle, signBundle, verifyBundle, unpackBundle, BundleWatcher } from "./contracts/bundle";
 export type { PolicyBundle, SignedBundle, BundleWatcherOptions } from "./contracts/bundle";
-
-// Contract Formats
-export { parseMarkdownContract } from "./contracts/markdown-parser";
-export type { MarkdownSection, MarkdownContractResult } from "./contracts/markdown-parser";
-export { P2TGenerator } from "./contracts/p2t-generator";
-export type { P2TTemplate, P2TInput, P2TParam } from "./contracts/p2t-generator";
 
 // Types
 export type {
@@ -168,7 +122,6 @@ export type {
   RateLimitValue,
   ModelBinding,
   MCPPermission,
-  DegradationTier,
   HumanOverride,
   ProofBundle,
   ChainSealRef,
@@ -176,35 +129,9 @@ export type {
   MCPToolCall,
   MCPAuthResult,
   ModelBindingResult,
-  PreFlightResult,
   ProofVerificationResult,
   RuleScope,
-  // Plan 2: Sandbox types
-  WasmSandboxOptions,
-  WasmResourceUsage,
-  ObligationResult,
-  SandboxOptions,
-  // Plan 2: Compiled evaluator types
-  CompiledContract,
-  CompiledRule,
-  CompilationStats,
-  // Plan 2: Immutable audit types
   ImmutableSinkOptions,
   IntegrityReport,
   ImmutableStoreStats,
-  // Plan 2: TLA+ types
-  TLAPlusOptions,
-  TLAPlusSpec,
-  ModelCheckResult,
-  // Plan 2: Attestation types
-  AttestationChallenge,
-  AttestationEvidence,
-  AttestationClaim,
-  AttestationResult,
-  AttestationPolicy,
-  AppraisalResult,
-  AttestationOptions,
-  // Plan 2: Trust anchor types
-  TrustQuote,
-  TrustAnchorInfo,
 } from "./types";

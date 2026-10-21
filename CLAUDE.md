@@ -2,12 +2,14 @@
 
 ## What This Is
 
-Embeddable AI governance framework. Define guardrails in YAML trust contracts, enforce them at runtime with a three-valued policy engine (permit / deny / **modify**), prove compliance with evidence-grade audit trails. Unlike OPA's binary allow/deny, the "modify" outcome lets you fix outputs (redact PII, add disclaimers) instead of blocking them.
+Embeddable TypeScript policy decision point for AI applications. Define guardrails in YAML trust contracts, enforce them at runtime with a three-valued policy engine (permit / deny / **modify**), and record every decision on a hash-chained audit log. Unlike OPA's binary allow/deny, the "modify" outcome returns obligations (redact PII, add disclaimers) that the host application applies.
+
+The library computes no detection signals. Fields such as `output.contains_pii`, `output.toxicity_score` and `input.injection_score` are read from the context the host supplies; the host runs the detectors and applies the obligations. `examples/openai-wrapper.ts` is the reference pattern.
 
 ## Commands
 
 ```bash
-npm test              # 504 tests via vitest — must all pass
+npm test              # 267 tests via vitest — must all pass
 npm run build         # tsc → dist/
 npm run lint          # eslint — zero errors required (warnings OK)
 npm run format        # prettier — run before committing
@@ -19,19 +21,14 @@ npx tsc --noEmit      # type-check without emitting dist/
 ```
 src/
 ├── governance.ts              # GodClause class — main entry point
-├── types.ts                   # ALL type definitions (~200 types) — single source of truth
+├── types.ts                   # ALL type definitions — single source of truth
 ├── index.ts                   # Public API — every export goes here
 │
 ├── engine/                    # Policy evaluation
 │   ├── policy-engine.ts       #   PolicyEngine: evaluate rules → PolicyDecision
-│   ├── evaluator.ts           #   Interpretive condition evaluator (12 operators)
-│   ├── compiled-evaluator.ts  #   Closure-compiled evaluator (sub-ms)
+│   ├── evaluator.ts           #   Condition evaluator (12 operators)
 │   ├── mcp-router.ts          #   MCP tool authorization (glob match, fail-closed)
 │   ├── state-store.ts         #   Rate limiting (MemoryStateStore)
-│   ├── cache.ts               #   LRU decision cache
-│   ├── boot.ts                #   Secure boot pre-flight checks
-│   ├── degradation.ts         #   Graceful degradation tiers
-│   ├── human-override.ts      #   Ed25519-signed human overrides
 │   └── model-binding.ts       #   Model allowlist/denylist verification
 │
 ├── contracts/                 # Trust contract management
@@ -39,15 +36,12 @@ src/
 │   ├── schema.ts              #   AJV JSON Schema for TrustContract
 │   ├── registry.ts            #   Named contract registry with versioning
 │   ├── watcher.ts             #   Directory watcher for zero-downtime hot-reload
-│   ├── bundle.ts              #   Signed policy bundles (DSSE) + BundleWatcher
-│   ├── changelog.ts           #   Contract change tracking
-│   ├── markdown-parser.ts     #   Parse contracts from Markdown
-│   └── p2t-generator.ts       #   Prompt-to-Trust contract generator
+│   └── bundle.ts              #   Signed policy bundles (DSSE) + BundleWatcher
 │
-├── audit/                     # Evidence-grade audit system
+├── audit/                     # Audit system
 │   ├── audit-log.ts           #   SHA-256 hash chain + AuditSink interface
 │   ├── seal.ts                #   Merkle tree seals
-│   ├── proof-bundle.ts        #   Court-grade evidence bundles
+│   ├── proof-bundle.ts        #   Contracts + entries + seals in one verifiable JSON
 │   ├── trace.ts               #   Distributed tracing spans
 │   ├── exporter.ts            #   CSV/JSON/summary export
 │   ├── file-sink.ts           #   Append-only file audit sink
@@ -59,26 +53,23 @@ src/
 ├── middleware/                 # Framework integrations
 │   ├── http.ts                #   Express/Koa HTTP middleware
 │   ├── ai-sdk.ts              #   LangChain, Vercel AI SDK hooks
-│   └── streaming.ts           #   Buffer-and-release streaming PII interceptor
+│   └── streaming.ts           #   Buffer-and-release streaming interceptor
 │
-├── server/server.ts           # Standalone REST API (24 endpoints + SSE)
-├── attestation/               # IETF RATS RFC 9334 + trust anchors
-├── sandbox/                   # WASM + V8 isolate sandboxes
-├── crypto/                    # DSSE signing + RFC 3161 timestamps
-├── compliance/                # TLA+ generator + compliance reporter (6 frameworks)
+├── server/server.ts           # Standalone REST API (17 endpoints incl. SSE)
+├── crypto/dsse.ts             # DSSE contract signing
 ├── observability/             # OpenTelemetry sink + structured logger
 ├── tenancy/                   # Multi-tenant isolation
 ├── notifications/             # Webhook notifier
-└── cli/                       # CLI: validate, lint, evaluate, serve, audit, attest
+└── cli/                       # CLI: validate, lint, summarize, diff, evaluate, audit, serve, init, proof-bundle, verify-bundle
 
 examples/
-├── openai-wrapper.ts          # OpenAI pre/post-check + PII redaction
+├── openai-wrapper.ts          # OpenAI pre/post-check + host-side PII detection and redaction
 ├── anthropic-wrapper.ts       # Claude wrapper (same pattern)
 ├── gemini-wrapper.ts          # Gemini wrapper (same pattern)
 ├── mcp-agent-demo.ts          # MCP tool governance demo
 ├── quickstart.ts              # 30-line minimal example
 ├── demo.ts                    # Full feature walkthrough
-├── threats/                   # 9 drop-in threat contracts (PII, injection, etc.)
+├── threats/                   # 9 threat contracts (host supplies the detector signals)
 └── templates/                 # Base safety/compliance contract templates
 ```
 
@@ -97,16 +88,17 @@ interface AuditSink { append(entry: AuditEntry): void | Promise<void>; }
 ```
 
 ### TrustContract schema
-Contracts are validated by AJV against the schema in `src/contracts/schema.ts`. Required sections: `schema_version`, `metadata`, `data_governance`, `rules`. Optional: `mcp_permissions`, `model_bindings`, `degradation_tiers`.
+Contracts are validated by AJV against the schema in `src/contracts/schema.ts`. Required sections: `schema_version`, `metadata`, `data_governance`, `rules`. Optional: `extends`, `override_rules`, `mcp_permissions`, `model_bindings`.
 
 ### PolicyDecision three-valued outcome
 ```typescript
 type DecisionOutcome = "permit" | "deny" | "modify";
 // "modify" carries obligations: { type: "redact_pii", params: { replacement: "[REDACTED]" } }
+// The host applies obligations; the library only returns them.
 ```
 
 ### No new npm dependencies
-All features use Node.js built-ins: `crypto`, `vm`, `WebAssembly`, `worker_threads`, `fs`, `child_process`. Current deps: ajv, commander, uuid, yaml.
+All features use Node.js built-ins: `crypto`, `fs`, `http`, `path`. Current deps: ajv, commander, uuid, yaml.
 
 ### TypeScript strict mode
 Zero type errors required. Avoid `any` in source files. Tests may use `any` sparingly.
@@ -149,7 +141,8 @@ Zero type errors required. Avoid `any` in source files. Tests may use `any` spar
 - Add npm dependencies — use Node.js built-ins
 - Define types outside `src/types.ts`
 - Skip `src/index.ts` exports for public APIs
-- Use `new Function()` or `eval()` — use closure composition (see `compiled-evaluator.ts`)
+- Use `new Function()` or `eval()`
+- Claim the library detects PII, toxicity or injection, or that it applies obligations — the host does both
 - Commit `.env`, `.pem`, `.key`, or credential files
 - Use Node 18 — minimum is Node 20 (vitest 3.x requires it)
 
@@ -159,5 +152,5 @@ Zero type errors required. Avoid `any` in source files. Tests may use `any` spar
 - **Node**: >= 20
 - **Module**: CommonJS (ES2022 target)
 - **Dependencies**: 4 (ajv, commander, uuid, yaml)
-- **Tests**: 504 across 35 test files
+- **Tests**: 267 across 23 test files
 - **GitHub**: https://github.com/GGeronik/God_Clause
