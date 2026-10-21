@@ -1,4 +1,14 @@
-import { appendFileSync, renameSync, statSync, existsSync, unlinkSync } from "fs";
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+} from "fs";
 import { AuditSink } from "./audit-log";
 import { AuditEntry } from "../types";
 
@@ -22,6 +32,7 @@ export class FileAuditSink implements AuditSink {
   private path: string;
   private maxSize: number;
   private maxFiles: number;
+  private tailChecked = false;
 
   constructor(opts: FileSinkOptions) {
     this.path = opts.path;
@@ -31,7 +42,39 @@ export class FileAuditSink implements AuditSink {
 
   append(entry: AuditEntry): void {
     this.rotateIfNeeded();
-    appendFileSync(this.path, JSON.stringify(entry) + "\n", "utf-8");
+    appendFileSync(this.path, (this.tornTail() ? "\n" : "") + JSON.stringify(entry) + "\n", "utf-8");
+  }
+
+  // A crash mid-append leaves an unterminated last line; without a newline the next entry would fuse onto it.
+  private tornTail(): boolean {
+    if (this.tailChecked) return false;
+    this.tailChecked = true;
+    if (!existsSync(this.path)) return false;
+    const size = statSync(this.path).size;
+    if (size === 0) return false;
+    const fd = openSync(this.path, "r");
+    const last = Buffer.alloc(1);
+    try {
+      readSync(fd, last, 0, 1, size - 1);
+    } finally {
+      closeSync(fd);
+    }
+    return last[0] !== 0x0a;
+  }
+
+  /** Hash of the last intact entry in an existing file, for `headHash` when resuming a chain. */
+  static lastHash(path: string): string | undefined {
+    if (!existsSync(path)) return undefined;
+    // shortcut: reads the whole file, bounded by maxSize; stream the tail if that limit is raised far
+    const lines = readFileSync(path, "utf-8").trim().split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        return (JSON.parse(lines[i]) as AuditEntry).hash;
+      } catch {
+        // torn write from a crash mid-append: resume from the entry before it
+      }
+    }
+    return undefined;
   }
 
   private rotateIfNeeded(): void {

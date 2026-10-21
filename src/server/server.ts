@@ -42,8 +42,9 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
   };
 
   if (auditDir) {
-    const { MemoryAuditSink: MemSink } = require("../audit/audit-log");
-    govOpts.auditSinks = [new MemSink(), new FileAuditSink({ path: join(auditDir, "audit.jsonl") })];
+    const auditPath = join(auditDir, "audit.jsonl");
+    govOpts.auditSinks = [new FileAuditSink({ path: auditPath })];
+    govOpts.auditHeadHash = FileAuditSink.lastHash(auditPath);
   }
 
   const gov = new GodClause(govOpts);

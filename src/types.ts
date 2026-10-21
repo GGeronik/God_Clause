@@ -297,6 +297,14 @@ export interface AuditEntry {
   hmac_signature?: string;
 }
 
+/** End anchors for verifying a run of audit entries. */
+export interface AuditChainAnchors {
+  /** Expected prev_hash of the first entry. */
+  prevHash?: string;
+  /** Expected hash of the last entry. */
+  headHash?: string;
+}
+
 export interface AuditQuery {
   from?: string;
   to?: string;

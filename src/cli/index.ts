@@ -7,7 +7,7 @@ import { parseContract, summarizeContract, serializeContract, ContractParseError
 import { lintContract, LintResult } from "./linter";
 import { GodClause } from "../governance";
 import { MemoryStateStore } from "../engine/state-store";
-import { AuditLog, MemoryAuditSink } from "../audit/audit-log";
+import { verifyAuditEntries } from "../audit/audit-log";
 import type { AuditEntry } from "../types";
 
 const program = new Command();
@@ -221,6 +221,27 @@ program
   });
 
 // ─── audit verify ───────────────────────────────────────────────────
+function readAuditFile(path: string): AuditEntry[] {
+  const entries: AuditEntry[] = [];
+  readFileSync(path, "utf-8")
+    .split("\n")
+    .forEach((line, i) => {
+      if (!line.trim()) return;
+      try {
+        const entry = JSON.parse(line);
+        if (entry && typeof entry === "object") {
+          entries.push(entry);
+          return;
+        }
+      } catch {
+        // reported below
+      }
+      console.error(`INVALID: line ${i + 1} is not an audit entry`);
+      process.exit(1);
+    });
+  return entries;
+}
+
 const auditCmd = program.command("audit").description("Audit log operations");
 
 auditCmd
@@ -228,21 +249,23 @@ auditCmd
   .description("Verify hash chain integrity of an audit JSONL file")
   .argument("<file>", "Path to audit JSONL file")
   .option("--secret <key>", "HMAC secret key for signature verification")
-  .action((file: string, opts: { secret?: string }) => {
-    const path = resolve(file);
-    const lines = readFileSync(path, "utf-8").trim().split("\n");
-    const entries: AuditEntry[] = lines.map((line) => JSON.parse(line));
+  .option("--prev-hash <hash>", "prev_hash expected on the first entry", "GENESIS")
+  .option("--head <hash>", "hash expected on the last entry")
+  .action((file: string, opts: { secret?: string; prevHash: string; head?: string }) => {
+    const entries = readAuditFile(resolve(file));
 
-    const auditLog = new AuditLog();
-    const result = auditLog.verifyChain(entries, opts.secret);
+    const result = verifyAuditEntries(entries, opts.secret, { prevHash: opts.prevHash, headHash: opts.head });
 
     if (result.valid) {
       console.log(`Valid: ${entries.length} entries, hash chain intact`);
     } else {
-      console.error(`INVALID: Hash chain broken at entry ${result.brokenAt}`);
-      if (result.brokenAt !== undefined) {
-        console.error(`  Entry ID: ${entries[result.brokenAt].entry_id}`);
-        console.error(`  Timestamp: ${entries[result.brokenAt].timestamp}`);
+      const broken = result.brokenAt !== undefined ? entries[result.brokenAt] : undefined;
+      console.error(
+        broken ? `INVALID: Hash chain broken at entry ${result.brokenAt}` : `INVALID: last entry does not match --head`,
+      );
+      if (broken) {
+        console.error(`  Entry ID: ${broken.entry_id}`);
+        console.error(`  Timestamp: ${broken.timestamp}`);
       }
       process.exit(1);
     }
@@ -256,8 +279,7 @@ auditCmd
   .option("--output <file>", "Output file (default: stdout)")
   .action((file: string, opts: { format: string; output?: string }) => {
     const path = resolve(file);
-    const lines = readFileSync(path, "utf-8").trim().split("\n");
-    const entries: AuditEntry[] = lines.map((line) => JSON.parse(line));
+    const entries = readAuditFile(path);
 
     let output: string;
     if (opts.format === "csv") {

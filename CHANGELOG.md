@@ -2,6 +2,22 @@
 
 All notable changes to God Clause are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Audit hash and HMAC now cover nested fields (`caller`, `rule_results`); the old replacer-array serialization skipped nested keys unless the same name also existed at the top level. `hash_version` is 3; older entries no longer verify.
+- `verifyAuditChain()` fails on a missing `hmac_signature` when a key is given, on a first entry not linked to the chain start, and on a last entry that is not the current head.
+- `ProofBundleBuilder.verify()` recomputes hashes and HMACs and rejects an empty bundle.
+- `GodClause` and `TenantScope` keep the in-memory sink alongside custom `auditSinks`, so verify, query and seal see the entries.
+- Entries are normalized to plain JSON before hashing and each sink gets its own copy.
+- Sinks receive entries in chain order when decisions overlap, and a failing sink no longer stops delivery to the others.
+- `FileAuditSink` terminates a torn last line (crash mid-append) before appending, so the next entry is not fused onto it.
+- Empty `auditSecretKey` is rejected; an empty verification key no longer skips HMAC checks.
+
+### Added
+- **Chain verification exports**: `canonicalJson`, `hashAuditEntry`, `verifyAuditEntries(entries, key?, { prevHash?, headHash? })`; `audit verify --prev-hash` and `--head`
+- **Chain resume**: `auditHeadHash` option and `AuditLog.headHash`; `FileAuditSink.lastHash(path)` reads the head from a file and the REST server resumes from `AUDIT_DIR/audit.jsonl`
+
 ## [2.0.0] - 2026-03-15
 
 ### Added

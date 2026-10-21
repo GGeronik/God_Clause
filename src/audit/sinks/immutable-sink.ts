@@ -1,8 +1,7 @@
-import { createHash } from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { AuditEntry, ImmutableSinkOptions, IntegrityReport, ImmutableStoreStats } from "../../types";
-import { AuditSink } from "../audit-log";
+import { AuditSink, hashAuditEntry } from "../audit-log";
 
 export class ImmutabilityViolationError extends Error {
   constructor(hash: string) {
@@ -63,7 +62,7 @@ export class ImmutableAuditSink implements AuditSink {
 
     // Verify on read
     if (this.verifyOnRead) {
-      const computedHash = this.computeEntryHash(entry);
+      const computedHash = hashAuditEntry(entry);
       if (computedHash !== entryHash) {
         throw new Error(`Tamper detected: entry hash mismatch for ${entryHash}`);
       }
@@ -105,7 +104,7 @@ export class ImmutableAuditSink implements AuditSink {
       try {
         const content = fs.readFileSync(filePath, "utf-8");
         const entry = JSON.parse(content) as AuditEntry;
-        const computedHash = this.computeEntryHash(entry);
+        const computedHash = hashAuditEntry(entry);
         if (computedHash !== hash) {
           corruptEntries.push(hash);
         }
@@ -165,13 +164,6 @@ export class ImmutableAuditSink implements AuditSink {
   private hashToPath(hash: string): string {
     // 2-level shard: {baseDir}/{hash[0:2]}/{hash[2:4]}/{hash}.json
     return path.join(this.baseDir, hash.slice(0, 2), hash.slice(2, 4), `${hash}.json`);
-  }
-
-  private computeEntryHash(entry: AuditEntry): string {
-    const { hash, hmac_signature, ...rest } = entry;
-    const keys = Object.keys(rest).sort();
-    const payload = JSON.stringify(rest, keys);
-    return createHash("sha256").update(payload).digest("hex");
   }
 
   private updateManifest(entry: AuditEntry): void {

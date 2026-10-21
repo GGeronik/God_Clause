@@ -9,7 +9,7 @@ import type { StateStore } from "../engine/state-store";
 export interface TenantOptions extends PolicyEngineOptions {
   /** Tenant display name. */
   tenantName?: string;
-  /** Audit sinks for this tenant. Defaults to a MemoryAuditSink. */
+  /** Audit sinks added alongside this tenant's built-in MemoryAuditSink. */
   auditSinks?: AuditSink[];
   /** Secret key for HMAC signing of this tenant's audit entries. */
   auditSecretKey?: string;
@@ -38,7 +38,7 @@ export class TenantScope {
     this.registry = new ContractRegistry();
 
     this.memorySink = new MemoryAuditSink();
-    const sinks = opts.auditSinks ?? [this.memorySink];
+    const sinks = [this.memorySink, ...(opts.auditSinks ?? [])];
     this.auditLog = new AuditLog({
       sinks,
       secretKey: opts.auditSecretKey,

@@ -179,13 +179,201 @@ rules:
     expect(result.valid).toBe(false);
   });
 
-  it("sets hash_version to 2 on entries", async () => {
+  it("detects tampering of nested fields (caller, rule_results)", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+
+    const entries = gov.getAuditEntries() as any[];
+    entries[0].caller.user_id = "someone-else";
+    expect(gov.verifyAuditChain()).toEqual({ valid: false, brokenAt: 0 });
+
+    entries[0].caller.user_id = "dr-test";
+    expect(gov.verifyAuditChain().valid).toBe(true);
+
+    entries[1].rule_results[0].passed = !entries[1].rule_results[0].passed;
+    expect(gov.verifyAuditChain()).toEqual({ valid: false, brokenAt: 1 });
+  });
+
+  it("detects deletion of the first entry", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+
+    const entries = gov.getAuditEntries() as any[];
+    entries.shift();
+    expect(gov.verifyAuditChain()).toEqual({ valid: false, brokenAt: 0 });
+  });
+
+  it("detects truncation of the tail", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+
+    const entries = gov.getAuditEntries() as any[];
+    entries.pop();
+    expect(gov.verifyAuditChain()).toEqual({ valid: false, brokenAt: 2 });
+
+    entries.length = 0;
+    expect(gov.verifyAuditChain()).toEqual({ valid: false, brokenAt: 0 });
+  });
+
+  it("exposes the chain head for external anchoring", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(healthcareYAML);
+
+    expect(gov.auditLog.headHash).toBe("GENESIS");
+    await gov.evaluate(makeCtx());
+    expect(gov.auditLog.headHash).toBe(gov.getAuditEntries()[0].hash);
+  });
+
+  it("verifyAuditEntries accepts a mid-chain slice; verifyChain does not", async () => {
+    const { verifyAuditEntries } = await import("../src/audit/audit-log");
+    const gov = new GodClause();
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+
+    const slice = [...gov.getAuditEntries()].slice(1);
+    expect(verifyAuditEntries(slice).valid).toBe(true);
+    expect(gov.auditLog.verifyChain(slice)).toEqual({ valid: false, brokenAt: 0 });
+  });
+
+  it("keeps verify and query working when custom sinks are configured", async () => {
+    const { MemoryAuditSink } = await import("../src/audit/audit-log");
+    const custom = new MemoryAuditSink();
+    const gov = new GodClause({ auditSinks: [custom] });
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+
+    expect(custom.entries.length).toBe(1);
+    expect(gov.getAuditEntries().length).toBe(1);
+    expect(gov.queryAudit({ user_id: "dr-test" }).length).toBe(1);
+    expect(gov.verifyAuditChain().valid).toBe(true);
+  });
+
+  it("detects content injected under a __proto__ key", async () => {
+    const { verifyAuditEntries } = await import("../src/audit/audit-log");
+    const gov = new GodClause({ auditSecretKey: "k" });
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+
+    const stored = JSON.stringify(gov.getAuditEntries()[0]);
+    const injected = JSON.parse(stored.replace(/^\{/, '{"__proto__":{"allowed":true},'));
+    expect(Object.keys(injected)).toContain("__proto__");
+    expect(verifyAuditEntries([injected], "k")).toEqual({ valid: false, brokenAt: 0 });
+  });
+
+  it("snapshots the caller instead of aliasing it", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(healthcareYAML);
+
+    const ctx = makeCtx();
+    await gov.evaluate(ctx);
+    ctx.caller.user_id = "mutated-later";
+    ctx.caller.roles.push("admin");
+
+    expect(gov.getAuditEntries()[0].caller.user_id).toBe("dr-test");
+    expect(gov.verifyAuditChain().valid).toBe(true);
+  });
+
+  it("gives each sink its own copy of the entry", async () => {
+    const mutating = {
+      append(e: any) {
+        e.allowed = !e.allowed;
+        delete e.caller.roles;
+      },
+    };
+    const gov = new GodClause({ auditSinks: [mutating] });
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+
+    expect(gov.getAuditEntries()[0].caller.roles).toEqual(["clinician"]);
+    expect(gov.verifyAuditChain().valid).toBe(true);
+  });
+
+  it("delivers entries to sinks in chain order when decisions overlap", async () => {
+    const { verifyAuditEntries } = await import("../src/audit/audit-log");
+    const seen: any[] = [];
+    let first = true;
+    const slow = {
+      async append() {
+        if (first) {
+          first = false;
+          await new Promise((r) => setTimeout(r, 20));
+        }
+      },
+    };
+    const recorder = { append: (e: any) => void seen.push(e) };
+    const gov = new GodClause({ auditSinks: [slow, recorder] });
+    gov.loadContractYAML(healthcareYAML);
+
+    await Promise.all([gov.evaluate(makeCtx()), gov.evaluate(makeCtx()), gov.evaluate(makeCtx())]);
+
+    expect(seen.map((e) => e.entry_id)).toEqual(gov.getAuditEntries().map((e) => e.entry_id));
+    expect(verifyAuditEntries(seen, undefined, { prevHash: "GENESIS" }).valid).toBe(true);
+  });
+
+  it("keeps recording after a sink throws", async () => {
+    let fail = true;
+    const flaky = {
+      append() {
+        if (fail) {
+          fail = false;
+          throw new Error("sink down");
+        }
+      },
+    };
+    const gov = new GodClause({ auditSinks: [flaky] });
+    gov.loadContractYAML(healthcareYAML);
+
+    await expect(gov.evaluate(makeCtx())).rejects.toThrow("sink down");
+    await expect(gov.evaluate(makeCtx())).resolves.toBeDefined();
+    expect(gov.getAuditEntries()).toHaveLength(2);
+  });
+
+  it("resumes a chain from a persisted head and anchors both ends offline", async () => {
+    const { verifyAuditEntries } = await import("../src/audit/audit-log");
+    const first = new GodClause();
+    first.loadContractYAML(healthcareYAML);
+    await first.evaluate(makeCtx());
+    await first.evaluate(makeCtx());
+
+    const second = new GodClause({ auditHeadHash: first.auditLog.headHash });
+    second.loadContractYAML(healthcareYAML);
+    await second.evaluate(makeCtx());
+
+    const file = [...first.getAuditEntries(), ...second.getAuditEntries()];
+    const head = second.auditLog.headHash;
+    expect(verifyAuditEntries(file, undefined, { prevHash: "GENESIS", headHash: head }).valid).toBe(true);
+    expect(second.verifyAuditChain().valid).toBe(true);
+    expect(verifyAuditEntries([...second.getAuditEntries()], undefined, { prevHash: "GENESIS" })).toEqual({
+      valid: false,
+      brokenAt: 0,
+    });
+    expect(verifyAuditEntries(file.slice(0, 2), undefined, { headHash: head })).toEqual({ valid: false, brokenAt: 2 });
+  });
+
+  it("sets hash_version to 3 on entries", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(healthcareYAML);
 
     await gov.evaluate(makeCtx());
     const entries = gov.getAuditEntries();
-    expect(entries[0].hash_version).toBe(2);
+    expect(entries[0].hash_version).toBe(3);
   });
 });
 
@@ -249,6 +437,33 @@ describe("HMAC Signing", () => {
 
     const result = gov.verifyAuditChain(key);
     expect(result.valid).toBe(false);
+  });
+
+  it("fails verification when a signature is stripped", async () => {
+    const key = "my-secret";
+    const gov = new GodClause({ auditSecretKey: key });
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+
+    const entries = gov.getAuditEntries() as any[];
+    delete entries[1].hmac_signature;
+
+    expect(gov.verifyAuditChain(key)).toEqual({ valid: false, brokenAt: 1 });
+  });
+
+  it("rejects an empty secret key", () => {
+    expect(() => new GodClause({ auditSecretKey: "" })).toThrow("secretKey must not be empty");
+  });
+
+  it("does not skip HMAC checks for an empty verification key", async () => {
+    const gov = new GodClause({ auditSecretKey: "k" });
+    gov.loadContractYAML(healthcareYAML);
+
+    await gov.evaluate(makeCtx());
+
+    expect(gov.verifyAuditChain("").valid).toBe(false);
   });
 });
 
