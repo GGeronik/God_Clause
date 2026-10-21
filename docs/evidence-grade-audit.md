@@ -26,7 +26,9 @@ Entry 1                Entry 2                Entry 3
 
 **What this proves**: If anyone modifies, deletes, or reorders any entry, the chain breaks. The hash of the modified entry won't match what the next entry expects in `prev_hash`. Tampering is mathematically detectable.
 
-**Verification**: `gov.verifyAuditChain()` walks the entire chain and reports the exact index where tampering is detected.
+**Verification**: `gov.verifyAuditChain()` recomputes every hash, walks the chain and reports the index where it breaks. The first entry must link to the chain's start (`GENESIS`, or the `auditHeadHash` it resumed from) and the last entry must match the live head (`gov.auditLog.headHash`), so deletions at either end are caught; `brokenAt` equals the entry count when the tail is missing.
+
+A process that reuses an audit file must resume from it with `auditHeadHash: FileAuditSink.lastHash(path)` (the REST server does this for `AUDIT_DIR`); otherwise the file holds two chains. To verify a file offline, keep the head hash somewhere the attacker cannot reach and pass it as `headHash` to `verifyAuditEntries` or `audit verify --head`; without it a truncated tail is undetectable.
 
 ### Layer 2: HMAC-SHA256 Signing
 
@@ -39,7 +41,7 @@ const gov = new GodClause({ auditSecretKey: "your-secret-key" });
 // Now every audit entry has an hmac_signature field
 ```
 
-**What this proves**: Even a fully compromised database cannot produce valid audit entries without the signing key. Separate the key from the database and you get true non-repudiation.
+**What this proves**: Even a fully compromised database cannot produce valid audit entries without the signing key. Separate the key from the database and you get true non-repudiation. When you verify with a key, an entry whose `hmac_signature` is missing fails verification.
 
 ### Layer 3: Merkle Seal Checkpoints
 

@@ -47,6 +47,34 @@ describe("FileAuditSink", () => {
     cleanup(...paths);
   });
 
+  it("lastHash returns the hash of the final entry", () => {
+    const path = tmpPath("lasthash");
+    paths.push(path);
+    const sink = new FileAuditSink({ path });
+
+    sink.append({ ...makeEntry("1"), hash: "h1" });
+    sink.append({ ...makeEntry("2"), hash: "h2" });
+
+    expect(FileAuditSink.lastHash(path)).toBe("h2");
+    expect(FileAuditSink.lastHash(path + ".missing")).toBeUndefined();
+
+    writeFileSync(path, readFileSync(path, "utf-8") + '{"entry_id":"torn","hash":"h3"', "utf-8");
+    expect(FileAuditSink.lastHash(path)).toBe("h2");
+  });
+
+  it("terminates a torn last line before appending", () => {
+    const path = tmpPath("torn");
+    paths.push(path);
+    writeFileSync(path, JSON.stringify({ ...makeEntry("1"), hash: "h1" }) + '\n{"entry_id":"torn"', "utf-8");
+
+    new FileAuditSink({ path }).append({ ...makeEntry("2"), hash: "h2" });
+
+    const lines = readFileSync(path, "utf-8").trim().split("\n");
+    expect(lines).toHaveLength(3);
+    expect(JSON.parse(lines[2]).hash).toBe("h2");
+    expect(FileAuditSink.lastHash(path)).toBe("h2");
+  });
+
   it("creates a JSONL file with entries", () => {
     const path = tmpPath("basic");
     paths.push(path);

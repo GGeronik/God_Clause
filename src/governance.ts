@@ -8,8 +8,10 @@ import { TenantScope, TenantOptions } from "./tenancy/tenant";
 import type { StateStore } from "./engine/state-store";
 
 export interface GovernanceOptions extends PolicyEngineOptions {
-  /** Audit sinks to attach. Defaults to a single MemoryAuditSink. */
+  /** Audit sinks added alongside the built-in MemoryAuditSink. */
   auditSinks?: AuditSink[];
+  /** Last persisted entry hash to resume the chain from, instead of GENESIS. */
+  auditHeadHash?: string;
   /** Secret key for HMAC-SHA256 audit signing. */
   auditSecretKey?: string;
   /** State store for rate limiting conditions. */
@@ -40,10 +42,11 @@ export class GodClause {
   constructor(opts: GovernanceOptions = {}) {
     this.memorySink = new MemoryAuditSink();
     this.registry = new ContractRegistry();
-    const sinks = opts.auditSinks ?? [this.memorySink];
+    const sinks = [this.memorySink, ...(opts.auditSinks ?? [])];
     this.auditLog = new AuditLog({
       sinks,
       secretKey: opts.auditSecretKey,
+      headHash: opts.auditHeadHash,
     });
 
     // Wrap the user's onDecision hook to also record audits.

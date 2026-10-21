@@ -28,7 +28,7 @@ export { DecisionCache } from "./engine/cache";
 export type { CacheOptions } from "./engine/cache";
 
 // Audit
-export { AuditLog, MemoryAuditSink } from "./audit/audit-log";
+export { AuditLog, MemoryAuditSink, canonicalJson, hashAuditEntry, verifyAuditEntries } from "./audit/audit-log";
 export type { AuditSink, AuditLogOptions } from "./audit/audit-log";
 export { computeMerkleRoot } from "./audit/seal";
 export type { ChainSeal } from "./audit/seal";
@@ -207,4 +207,5 @@ export type {
   // Plan 2: Trust anchor types
   TrustQuote,
   TrustAnchorInfo,
+  AuditChainAnchors,
 } from "./types";

@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import type { GodClause } from "../governance";
-import type { AuditEntry, ProofBundle, ProofVerificationResult, HumanOverride, ChainSealRef } from "../types";
+import type { ProofBundle, ProofVerificationResult, HumanOverride, ChainSealRef } from "../types";
 import { computeMerkleRoot, ChainSeal } from "./seal";
+import { verifyAuditEntries } from "./audit-log";
 
 /**
  * ProofBundleBuilder creates self-contained evidence bundles for
@@ -94,21 +95,22 @@ export class ProofBundleBuilder {
    * Verify all evidence within a proof bundle.
    *
    * Checks:
-   * 1. Hash chain integrity (recompute and compare hashes)
+   * 1. Hash chain integrity (hashes, prev_hash links, HMAC when secretKey is given)
    * 2. Merkle seal integrity (recompute roots from entry hashes)
-   * 3. Chain linkage (prev_hash references)
+   * 3. Bundle is non-empty
    */
   async verify(bundle: ProofBundle, secretKey?: string): Promise<ProofVerificationResult> {
     const details: Array<{ check: string; passed: boolean; detail?: string }> = [];
 
     // 1. Verify hash chain
-    const chainValid = verifyBundleChain(bundle.audit_entries);
+    const chain = verifyAuditEntries(bundle.audit_entries, secretKey);
+    const chainValid = chain.valid;
     details.push({
       check: "hash_chain",
       passed: chainValid,
       detail: chainValid
         ? `${bundle.audit_entries.length} entries verified`
-        : "Hash chain broken — entries may have been tampered with",
+        : `Hash chain broken at entry ${chain.brokenAt} — entries may have been tampered with`,
     });
 
     // 2. Verify Merkle seals
@@ -154,7 +156,7 @@ export class ProofBundleBuilder {
         : "Bundle has no audit entries",
     });
 
-    const valid = chainValid && sealsValid;
+    const valid = chainValid && sealsValid && hasEntries;
 
     return {
       valid,
@@ -163,20 +165,4 @@ export class ProofBundleBuilder {
       details,
     };
   }
-}
-
-/**
- * Verify hash chain integrity within a bundle's entries.
- * Checks that prev_hash references are correct.
- */
-function verifyBundleChain(entries: AuditEntry[]): boolean {
-  if (entries.length === 0) return true;
-
-  for (let i = 1; i < entries.length; i++) {
-    if (entries[i].prev_hash !== entries[i - 1].hash) {
-      return false;
-    }
-  }
-
-  return true;
 }

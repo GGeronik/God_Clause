@@ -130,6 +130,39 @@ describe("Proof Bundle Builder", () => {
     expect(result.chain_valid).toBe(false);
   });
 
+  it("detects a modified field even when the hash is left untouched", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(testContract);
+
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+
+    const builder = new ProofBundleBuilder(gov);
+    const bundle = await builder.build();
+
+    bundle.audit_entries[0].allowed = !bundle.audit_entries[0].allowed;
+
+    const result = await builder.verify(bundle);
+    expect(result.chain_valid).toBe(false);
+    expect(result.details[0].detail).toContain("broken at entry 0");
+  });
+
+  it("fails with a secret key when a signature is stripped", async () => {
+    const key = "bundle-secret";
+    const gov = new GodClause({ auditSecretKey: key });
+    gov.loadContractYAML(testContract);
+
+    await gov.evaluate(makeCtx());
+    await gov.evaluate(makeCtx());
+
+    const builder = new ProofBundleBuilder(gov);
+    const bundle = await builder.build();
+    expect((await builder.verify(bundle, key)).valid).toBe(true);
+
+    delete (bundle.audit_entries[1] as any).hmac_signature;
+    expect((await builder.verify(bundle, key)).chain_valid).toBe(false);
+  });
+
   it("verifies bundle with Merkle seals", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(testContract);
@@ -178,6 +211,17 @@ describe("Proof Bundle Builder", () => {
 
     expect(bundle.audit_entries.length).toBe(0);
     expect(bundle.chain_verification.valid).toBe(true);
+  });
+
+  it("does not report an empty bundle as valid evidence", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(testContract);
+
+    const builder = new ProofBundleBuilder(gov);
+    const result = await builder.verify(await builder.build());
+
+    expect(result.chain_valid).toBe(true);
+    expect(result.valid).toBe(false);
   });
 
   it("includes human overrides when provided", async () => {

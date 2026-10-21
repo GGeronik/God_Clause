@@ -128,4 +128,19 @@ describe("Multi-Tenancy", () => {
     const result = tenant.verifyAuditChain();
     expect(result.valid).toBe(true);
   });
+
+  it("tenant keeps verify and query working with custom sinks", async () => {
+    const { MemoryAuditSink } = await import("../src/audit/audit-log");
+    const custom = new MemoryAuditSink();
+    const gov = new GodClause();
+    const tenant = gov.createTenant("tenant-a", { auditSinks: [custom] });
+    tenant.loadContractYAML(simpleContract);
+
+    await tenant.evaluate(makeCtx());
+
+    expect(custom.entries).toHaveLength(1);
+    expect(tenant.getAuditEntries()).toHaveLength(1);
+    expect(tenant.queryAudit({ user_id: "u1" })).toHaveLength(1);
+    expect(tenant.verifyAuditChain().valid).toBe(true);
+  });
 });

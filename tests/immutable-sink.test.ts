@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createHash } from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { AuditEntry } from "../src/types";
-import { AuditSink } from "../src/audit/audit-log";
+import { AuditSink, hashAuditEntry } from "../src/audit/audit-log";
 import { ImmutableAuditSink, ImmutabilityViolationError } from "../src/audit/sinks/immutable-sink";
 
 let tmpDir: string;
@@ -34,13 +33,9 @@ function makeEntry(id: string): AuditEntry {
     timestamp: new Date().toISOString(),
     prev_hash: "GENESIS",
     hash: "",
-    hash_version: 2,
+    hash_version: 3,
   };
-  // Compute real hash using the same algorithm as the sink
-  const { hash: _, hmac_signature, ...rest } = entry;
-  const keys = Object.keys(rest).sort();
-  const payload = JSON.stringify(rest, keys);
-  entry.hash = createHash("sha256").update(payload).digest("hex");
+  entry.hash = hashAuditEntry(entry);
   return entry;
 }
 
@@ -246,21 +241,11 @@ describe("ImmutableAuditSink", () => {
 
     const e1 = makeEntry("s4");
     e1.timestamp = "2024-01-01T00:00:00.000Z";
-    // Recompute hash after changing timestamp
-    {
-      const { hash: _, hmac_signature, ...rest } = e1;
-      const keys = Object.keys(rest).sort();
-      e1.hash = createHash("sha256").update(JSON.stringify(rest, keys)).digest("hex");
-    }
+    e1.hash = hashAuditEntry(e1);
 
     const e2 = makeEntry("s5");
     e2.timestamp = "2024-12-31T23:59:59.000Z";
-    // Recompute hash after changing timestamp
-    {
-      const { hash: _, hmac_signature, ...rest } = e2;
-      const keys = Object.keys(rest).sort();
-      e2.hash = createHash("sha256").update(JSON.stringify(rest, keys)).digest("hex");
-    }
+    e2.hash = hashAuditEntry(e2);
 
     await sink.append(e1);
     await sink.append(e2);
