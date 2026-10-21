@@ -1,12 +1,12 @@
 # GitHub Copilot Instructions — God Clause
 
 ## Project
-God Clause is an embeddable AI governance framework. YAML trust contracts define rules enforced by a three-valued policy engine (permit/deny/modify). The "modify" outcome attaches obligations (redact PII, add disclaimers) instead of blocking.
+God Clause is an embeddable TypeScript policy decision point for AI applications. YAML trust contracts define rules enforced by a three-valued policy engine (permit/deny/modify). The "modify" outcome attaches obligations (redact PII, add disclaimers) that the host application applies. The library computes no detection signals; the host sets fields like `output.contains_pii`.
 
 ## Tech Stack
 - TypeScript strict mode, CommonJS, ES2022 target, Node >= 20
 - 4 dependencies: ajv, commander, uuid, yaml
-- Testing: vitest (504 tests across 35 files)
+- Testing: vitest (267 tests across 23 files)
 - Linting: eslint + prettier
 
 ## Key Files

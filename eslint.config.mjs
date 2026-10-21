@@ -4,7 +4,7 @@ import prettierConfig from "eslint-config-prettier";
 
 export default [
   {
-    ignores: ["dist/", "node_modules/", "dashboard/", "charts/"],
+    ignores: ["dist/", "node_modules/", "charts/"],
   },
   {
     files: ["src/**/*.ts", "tests/**/*.ts"],
