@@ -137,7 +137,7 @@ export class AuditLog {
    * to reduce volume. Deny and modify decisions are ALWAYS recorded.
    * Returns null when a permit is skipped due to sampling.
    */
-  async record(decision: PolicyDecision, contract: TrustContract): Promise<AuditEntry | null> {
+  async record(decision: PolicyDecision, contract?: TrustContract): Promise<AuditEntry | null> {
     // Sampling: always log denies and modifies, sample permits
     if (decision.outcome === "permit" && this.permitSampleRate < 1.0 && Math.random() >= this.permitSampleRate) {
       return null;
@@ -146,7 +146,7 @@ export class AuditLog {
     // Collect tags from evaluated rules
     const allTags = new Set<string>();
     for (const e of decision.evaluations) {
-      const rule = contract.rules.find((r) => r.id === e.rule_id);
+      const rule = contract?.rules.find((r) => r.id === e.rule_id);
       if (rule?.tags) {
         for (const t of rule.tags) allTags.add(t);
       }
@@ -157,8 +157,8 @@ export class AuditLog {
       JSON.stringify({
         entry_id: uuidv4(),
         decision_id: decision.decision_id,
-        contract_name: contract.metadata.name,
-        contract_version: contract.metadata.version,
+        contract_name: contract?.metadata.name ?? "(none)",
+        contract_version: contract?.metadata.version ?? "",
         action: decision.context.action,
         caller: decision.context.caller,
         allowed: decision.allowed,
@@ -167,6 +167,7 @@ export class AuditLog {
           rule_id: e.rule_id,
           passed: e.passed,
           severity: e.severity,
+          error: e.error,
         })),
         warnings: decision.warnings.map((w) => w.rule_id),
         blocks: decision.blocks.map((b) => b.rule_id),

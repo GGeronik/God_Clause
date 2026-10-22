@@ -1,5 +1,5 @@
 import { TrustContract, PolicyContext, PolicyDecision, AuditEntry, AuditQuery, EvaluateOptions } from "./types";
-import { parseContract, serializeContract, summarizeContract } from "./contracts/parser";
+import { parseContract, serializeContract, summarizeContract, validateContract } from "./contracts/parser";
 import { ContractRegistry } from "./contracts/registry";
 import { PolicyEngine, PolicyEngineOptions, PolicyViolationError } from "./engine/policy-engine";
 import { AuditLog, MemoryAuditSink, AuditSink } from "./audit/audit-log";
@@ -56,8 +56,10 @@ export class GodClause {
     this.engine = new PolicyEngine({
       ...opts,
       async onDecision(decision) {
-        // Record in audit log for every active contract.
-        for (const contract of self.registry.getAllActive()) {
+        // Record in audit log for every active contract; a no-contract deny is recorded too.
+        const active = self.registry.getAllActive();
+        if (active.length === 0) await self.auditLog.record(decision);
+        for (const contract of active) {
           await self.auditLog.record(decision, contract);
         }
         if (userOnDecision) await userOnDecision(decision);
@@ -79,8 +81,9 @@ export class GodClause {
     return contract;
   }
 
-  /** Load an already-parsed trust contract object. */
+  /** Load an already-parsed trust contract object; it is validated like YAML input. */
   loadContract(contract: TrustContract): void {
+    validateContract(contract);
     this.registry.register(contract, { activate: true });
     this.engine.loadContract(contract);
   }

@@ -117,9 +117,9 @@ describe("GodClause Contract Versioning", () => {
     gov.deactivateContract("Versioned Contract", "1.0.0");
     expect(gov.getContracts()).toHaveLength(0);
 
-    // Should still allow since no active contracts
+    // The deactivated rule no longer applies; with no active contract the engine fails closed instead.
     const decision = await gov.evaluate(makeCtx({ input: {} }));
-    expect(decision.allowed).toBe(true);
+    expect(decision.blocks.map((b) => b.rule_id)).toEqual(["NO-CONTRACT"]);
   });
 
   it("graceful rollover between versions", async () => {

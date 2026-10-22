@@ -69,6 +69,17 @@ export class PolicyEngine {
   async evaluate(ctx: PolicyContext, opts?: EvaluateOptions): Promise<PolicyDecision> {
     const allEvaluations: RuleEvaluation[] = [];
 
+    if (this.contracts.length === 0) {
+      allEvaluations.push({
+        rule_id: "NO-CONTRACT",
+        rule_description: "No trust contract is loaded",
+        passed: false,
+        severity: "block",
+        violated_conditions: [],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     for (const contract of this.contracts) {
       let rules = contract.rules;
 
@@ -81,7 +92,21 @@ export class PolicyEngine {
       }
 
       for (const rule of rules) {
-        const evaluation = await evaluateRule(rule, ctx, { stateStore: this.stateStore });
+        let evaluation: RuleEvaluation;
+        try {
+          evaluation = await evaluateRule(rule, ctx, { stateStore: this.stateStore });
+        } catch (err) {
+          // A rule that cannot be evaluated fails closed, whatever its on_violation says.
+          evaluation = {
+            rule_id: rule.id,
+            rule_description: rule.description,
+            passed: false,
+            severity: "block",
+            violated_conditions: [],
+            timestamp: new Date().toISOString(),
+            error: errorText(err),
+          };
+        }
 
         // Attach obligations for modify-severity failures
         if (!evaluation.passed && rule.on_violation === "modify" && rule.obligations) {
@@ -164,6 +189,14 @@ export class PolicyEngine {
       throw err;
     }
     return decision;
+  }
+}
+
+function errorText(err: unknown): string {
+  try {
+    return String(err instanceof Error ? err.message : err);
+  } catch {
+    return "error could not be converted to text";
   }
 }
 

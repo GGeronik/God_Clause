@@ -61,8 +61,9 @@ describe("Multi-Tenancy", () => {
     const dA = await tenantA.evaluate(makeCtx({ input: {} }));
     expect(dA.allowed).toBe(false);
 
+    // tenantA's rule does not reach tenantB; with nothing loaded tenantB fails closed on its own.
     const dB = await tenantB.evaluate(makeCtx({ input: {} }));
-    expect(dB.allowed).toBe(true); // no contracts to block
+    expect(dB.blocks.map((b) => b.rule_id)).toEqual(["NO-CONTRACT"]);
   });
 
   it("tenants have isolated audit logs", async () => {

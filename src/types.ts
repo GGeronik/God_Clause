@@ -220,6 +220,8 @@ export interface RuleEvaluation {
   obligations?: Obligation[];
   /** Contract version this rule came from. */
   contract_version?: string;
+  /** Why the rule could not be evaluated; such a rule fails closed. */
+  error?: string;
 }
 
 export interface ViolatedCondition {
@@ -268,7 +270,7 @@ export interface AuditEntry {
   allowed: boolean;
   /** Three-valued outcome. */
   outcome?: DecisionOutcome;
-  rule_results: { rule_id: string; passed: boolean; severity: Severity }[];
+  rule_results: { rule_id: string; passed: boolean; severity: Severity; error?: string }[];
   warnings: string[];
   blocks: string[];
   logs: string[];

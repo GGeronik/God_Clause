@@ -84,11 +84,13 @@ describe("Rate Limiting", () => {
     expect(bobD.allowed).toBe(true);
   });
 
-  it("throws without state store", async () => {
+  it("denies without state store", async () => {
     const gov = new GodClause(); // no stateStore
     gov.loadContractYAML(rateLimitContract);
 
-    await expect(gov.evaluate(makeCtx())).rejects.toThrow("StateStore");
+    const decision = await gov.evaluate(makeCtx());
+    expect(decision.outcome).toBe("deny");
+    expect(decision.blocks[0].error).toContain("StateStore");
   });
 
   it("clears state store", async () => {

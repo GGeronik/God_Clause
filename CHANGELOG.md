@@ -9,6 +9,10 @@ All notable changes to God Clause are documented in this file.
 - **Chain resume**: `auditHeadHash` option and `AuditLog.headHash`; `FileAuditSink.lastHash(path)` reads the head from a file and the REST server resumes from `AUDIT_DIR/audit.jsonl`
 
 ### Fixed
+- `evaluate()` denies when no contract is loaded and records that deny; the REST server answers 503 on `/v1/evaluate`, `/v1/enforce`, `/v1/evaluate/batch` and `/v1/mcp/authorize` until a contract is loaded.
+- A rule whose evaluation throws (invalid regex, missing or misbehaving `StateStore`) blocks instead of rejecting `evaluate()`; the reason is in `RuleEvaluation.error` and in the audit entry's `rule_results`. `MCPRouter` likewise denies on a permission whose condition throws instead of skipping to the next rule.
+- Signed bundles are schema-validated after signature verification; `verifyBundle()` and `unpackBundle()` throw `ContractParseError` on a malformed contract, and an envelope with another `payloadType` is not a valid bundle.
+- `parseContract()` and `loadContract()` reject invalid or non-string `matches` patterns, wrong-typed `greater_than`/`less_than`/`in`/`not_in` values, malformed `rate_limit` values (`max` not a positive integer, `window` not a finite positive ISO 8601 duration) and `rate_limit` inside `mcp_permissions`, naming the condition's path.
 - Audit hash and HMAC now cover nested fields (`caller`, `rule_results`); the old replacer-array serialization skipped nested keys unless the same name also existed at the top level. `hash_version` is 3; older entries no longer verify.
 - `verifyAuditChain()` fails on a missing `hmac_signature` when a key is given, on a first entry not linked to the chain start, and on a last entry that is not the current head.
 - `ProofBundleBuilder.verify()` recomputes hashes and HMACs and rejects an empty bundle.

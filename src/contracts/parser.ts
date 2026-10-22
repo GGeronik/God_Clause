@@ -1,7 +1,8 @@
 import YAML from "yaml";
 import Ajv from "ajv";
-import { TrustContract, PolicyRule, PolicyConditionExpr } from "../types";
+import { TrustContract, PolicyRule, PolicyConditionExpr, RateLimitValue } from "../types";
 import { trustContractSchema } from "./schema";
+import { parseISO8601Duration } from "../engine/state-store";
 import type { ContractRegistry } from "./registry";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -33,13 +34,77 @@ export function parseContract(source: string): TrustContract {
     }
   }
 
-  const valid = validate(raw);
-  if (!valid) {
-    const messages = (validate.errors ?? []).map((e) => `${e.instancePath || "/"}: ${e.message}`);
+  return validateContract(raw);
+}
+
+/**
+ * Validate an already-parsed document against the schema plus the checks the
+ * schema cannot express (regex syntax, rate_limit shape). Throws ContractParseError.
+ */
+export function validateContract(raw: unknown): TrustContract {
+  const contract = raw as TrustContract;
+  const messages = validate(raw)
+    ? checkConditionValues(contract)
+    : (validate.errors ?? []).map((e) => `${e.instancePath || "/"}: ${e.message}`);
+  if (messages.length > 0) {
     throw new ContractParseError(`Trust contract validation failed with ${messages.length} error(s)`, messages);
   }
+  return contract;
+}
 
-  return raw as TrustContract;
+function checkConditionValues(contract: TrustContract): string[] {
+  const problems: string[] = [];
+  const walk = (expr: PolicyConditionExpr, path: string, inMcp = false): void => {
+    if ("all" in expr) return expr.all.forEach((e, i) => walk(e, `${path}/all/${i}`, inMcp));
+    if ("any" in expr) return expr.any.forEach((e, i) => walk(e, `${path}/any/${i}`, inMcp));
+    if ("not" in expr) return walk(expr.not, `${path}/not`, inMcp);
+    if ((expr.operator === "greater_than" || expr.operator === "less_than") && typeof expr.value !== "number") {
+      problems.push(`${path}/value: ${expr.operator} needs a number`);
+    }
+    if ((expr.operator === "in" || expr.operator === "not_in") && !Array.isArray(expr.value)) {
+      problems.push(`${path}/value: ${expr.operator} needs an array`);
+    }
+    if (expr.operator === "matches") {
+      if (typeof expr.value !== "string") {
+        problems.push(`${path}/value: matches needs a string pattern`);
+        return;
+      }
+      try {
+        new RegExp(expr.value);
+      } catch (err) {
+        problems.push(`${path}/value: ${(err as Error).message}`);
+      }
+    }
+    if (expr.operator === "rate_limit") {
+      if (inMcp) {
+        problems.push(`${path}: rate_limit is not supported in mcp_permissions; use max_calls_per_session`);
+        return;
+      }
+      const v = expr.value as Partial<RateLimitValue> | null;
+      if (!v || typeof v !== "object" || !Number.isSafeInteger(v.max) || v.max! <= 0 || typeof v.window !== "string") {
+        problems.push(`${path}/value: rate_limit needs { max: positive integer, window: ISO 8601 duration }`);
+        return;
+      }
+      try {
+        const ms = parseISO8601Duration(v.window);
+        if (!(ms > 0 && Number.isFinite(ms)))
+          problems.push(`${path}/value/window: must be a finite, positive duration`);
+      } catch (err) {
+        problems.push(`${path}/value/window: ${(err as Error).message}`);
+      }
+    }
+  };
+  const visitRules = (rules: PolicyRule[] | undefined, prefix: string): void =>
+    rules?.forEach((rule, i) => {
+      rule.conditions.forEach((c, j) => walk(c, `${prefix}/${i}/conditions/${j}`));
+      rule.exceptions?.forEach((c, j) => walk(c, `${prefix}/${i}/exceptions/${j}`));
+    });
+  visitRules(contract.rules, "/rules");
+  visitRules(contract.override_rules, "/override_rules");
+  contract.mcp_permissions?.forEach((p, i) =>
+    p.conditions?.forEach((c, j) => walk(c, `/mcp_permissions/${i}/conditions/${j}`, true)),
+  );
+  return problems;
 }
 
 /**
