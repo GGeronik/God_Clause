@@ -1,14 +1,14 @@
-# Why Hash Chains Beat Database Logs
+# Audit Trail: What Each Layer Proves
 
-Standard database audit logs fail regulatory non-repudiation tests. God Clause's audit trail is built for evidence.
+A plain database log can be edited by anyone with write access and leaves no trace. God Clause's audit log makes edits detectable. This page states what each layer proves and what it does not.
 
 ## The Problem With Database Logs
 
 When an auditor asks "prove this AI decision happened exactly as recorded," a database log has a fundamental weakness: **anyone with database access can silently edit, delete, or reorder entries.** There is no way to prove the log hasn't been modified after the fact.
 
-This is why regulators increasingly reject standard database logs as sole evidence of compliance. A DBA, a compromised credential, or even a buggy migration can alter the audit trail without any trace.
+A DBA, a compromised credential, or a buggy migration can alter such a log without any trace.
 
-## God Clause's Five-Layer Evidence Stack
+## God Clause's Four Layers
 
 ### Layer 1: SHA-256 Hash Chain
 
@@ -66,23 +66,7 @@ const seal = gov.sealAuditChain();
 
 **What this proves**: Integrity of an entire audit segment in a single hash comparison.
 
-### Layer 4: RFC 3161 Trusted Timestamps
-
-Your server's clock can be manipulated. RFC 3161 timestamps anchor Merkle seals to an external Time Stamping Authority (TSA).
-
-```typescript
-import { requestTimestamp } from "god-clause";
-
-const seal = gov.sealAuditChain();
-const token = await requestTimestamp(seal.merkle_root, {
-  tsaUrl: "http://timestamp.digicert.com",
-});
-// token.timestamp = trusted external timestamp
-```
-
-**What this proves**: The Merkle root (and therefore all the entries it covers) existed at a specific point in time, certified by a trusted third party. You cannot backdate audit entries.
-
-### Layer 5: DSSE Contract Signatures
+### Layer 4: DSSE Contract Signatures
 
 Dead Simple Signing Envelopes (DSSE) sign the trust contracts themselves.
 
@@ -98,18 +82,22 @@ const envelope = signContract(contract, {
 
 **What this proves**: WHO authored or approved each policy contract. The signature is bound to the exact YAML content — any modification invalidates it.
 
-## The Complete Evidence Chain
+## The Complete Chain
 
-When a regulator asks "prove your AI system followed its governance policy on March 15th":
+When asked "show that your AI system followed its policy on March 15th":
 
-1. **DSSE envelope** proves the policy contract was authored by an authorized signer
-2. **Audit hash chain** proves every decision was recorded in tamper-evident sequence
-3. **HMAC signatures** prove entries weren't recomputed by an attacker
-4. **Merkle seal** proves the integrity of the entire audit segment
-5. **RFC 3161 timestamp** proves the seal existed at that specific point in time
-6. **`governance_context.policy_sha256`** in each audit entry proves which exact policy version was active for each decision
+1. **DSSE envelope** shows who signed the policy contract
+2. **Audit hash chain** shows every decision was recorded in sequence and none was altered since
+3. **HMAC signatures** show entries weren't recomputed by someone without the key
+4. **Merkle seal** checks the integrity of a whole audit segment in one comparison
+5. **`governance_context.policy_sha256`** in each audit entry ties it to the exact policy version that produced it
 
-This is evidence-grade proof. Standard database logs provide none of these guarantees.
+## What It Does Not Prove
+
+- **When.** Entry and seal timestamps come from the host clock. Nothing anchors them to an external time source.
+- **What the application did.** The log records the decision and its obligations, not whether the host applied them.
+- **Anything, if the HMAC key sits next to the log.** The HMAC layer only helps when the key is held separately from whoever can write to the log.
+- **Compliance.** God Clause generates no compliance reports and certifies nothing against any framework. The mapping below is a pointer to which control each layer is relevant to, not a claim of satisfying it.
 
 ## Compliance Mapping
 
@@ -118,5 +106,4 @@ This is evidence-grade proof. Standard database logs provide none of these guara
 | Hash chain | CC6.1 Integrity | Art 12 Logging | Art 30 Records | 164.312(b) Audit | GOVERN-1 |
 | HMAC signing | CC6.1 Integrity | Art 15 Accuracy | Art 32 Security | 164.312(c) Integrity | MANAGE-2 |
 | Merkle seals | CC7.2 Monitoring | Art 12 Logging | Art 5(1)(f) Integrity | 164.312(c) Integrity | MANAGE-3 |
-| RFC 3161 timestamps | CC8.1 Change mgmt | Art 12 Logging | Art 5(1)(f) Integrity | 164.312(b) Audit | GOVERN-4 |
 | DSSE signatures | CC6.3 Authorization | Art 13 Transparency | Art 24 Responsibility | 164.312(d) Auth | MAP-1 |

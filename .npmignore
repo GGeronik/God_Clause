@@ -1,7 +1,6 @@
 # Source (dist/ is included via package.json "files")
 src/
 tests/
-dashboard/
 docs/
 charts/
 .github/

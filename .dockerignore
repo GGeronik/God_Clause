@@ -7,5 +7,4 @@ examples
 docs
 *.md
 !README.md
-dashboard
 audit
