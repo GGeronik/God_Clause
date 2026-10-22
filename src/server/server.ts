@@ -110,6 +110,12 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
     });
   }
 
+  function noContracts(res: ServerResponse): boolean {
+    if (gov.getContracts().length > 0) return false;
+    json(res, 503, { error: "no_contracts", message: "No trust contract is loaded; refusing to decide" });
+    return true;
+  }
+
   function json(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json" });
     res.end(JSON.stringify(data));
@@ -183,6 +189,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
       // ─── Evaluate ───────────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/evaluate")) {
+        if (noContracts(res)) return;
         const body = JSON.parse(await parseBody(req));
         const ctx: PolicyContext = {
           action: body.action,
@@ -254,6 +261,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
       // ─── Enforce ────────────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/enforce")) {
+        if (noContracts(res)) return;
         const body = JSON.parse(await parseBody(req));
         const ctx: PolicyContext = {
           action: body.action,
@@ -467,6 +475,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
       // ─── Batch Evaluate ─────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/evaluate/batch")) {
+        if (noContracts(res)) return;
         const body = JSON.parse(await parseBody(req));
         if (!Array.isArray(body.contexts)) {
           json(res, 400, { error: "invalid_request", message: "body.contexts must be an array" });
@@ -500,6 +509,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
       // ─── MCP Authorize ──────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/mcp/authorize")) {
+        if (noContracts(res)) return;
         const { MCPRouter } = await import("../engine/mcp-router");
         const body = JSON.parse(await parseBody(req));
 

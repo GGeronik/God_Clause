@@ -296,6 +296,9 @@ async function evaluateRateLimit(
   const key = `rate:${expr.field}:${String(fieldValue)}`;
   const windowMs = parseISO8601Duration(value.window);
   const count = await evalCtx.stateStore.recordAndCount(key, windowMs);
+  if (typeof count !== "number" || Number.isNaN(count)) {
+    throw new Error(`StateStore.recordAndCount returned ${String(count)} instead of a number`);
+  }
 
   if (count <= value.max) {
     return { passed: true, violations: [] };

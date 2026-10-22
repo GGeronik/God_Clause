@@ -1,5 +1,5 @@
 import { TrustContract, PolicyContext, PolicyDecision, AuditEntry, AuditQuery, EvaluateOptions } from "../types";
-import { parseContract } from "../contracts/parser";
+import { parseContract, validateContract } from "../contracts/parser";
 import { ContractRegistry } from "../contracts/registry";
 import { PolicyEngine, PolicyEngineOptions } from "../engine/policy-engine";
 import { AuditLog, MemoryAuditSink, AuditSink } from "../audit/audit-log";
@@ -50,7 +50,9 @@ export class TenantScope {
     this.engine = new PolicyEngine({
       ...opts,
       async onDecision(decision) {
-        for (const contract of self.registry.getAllActive()) {
+        const active = self.registry.getAllActive();
+        if (active.length === 0) await self.auditLog.record(decision);
+        for (const contract of active) {
           await self.auditLog.record(decision, contract);
         }
         if (userOnDecision) await userOnDecision(decision);
@@ -72,6 +74,7 @@ export class TenantScope {
 
   /** Load an already-parsed contract. */
   loadContract(contract: TrustContract): void {
+    validateContract(contract);
     this.registry.register(contract, { activate: true });
     this.engine.loadContract(contract);
   }

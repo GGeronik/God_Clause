@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import type { TrustContract } from "../types";
 import type { DSSEEnvelope, SigningOptions, VerifyOptions } from "../crypto/dsse";
 import { paeEncode, contractFingerprint } from "../crypto/dsse";
+import { ContractParseError, validateContract } from "./parser";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -86,11 +87,13 @@ export function signBundle(bundle: PolicyBundle, opts: SigningOptions): SignedBu
 }
 
 /**
- * Verify a signed bundle's DSSE envelope.
- * Returns { valid: true, bundle } on success, or { valid: false } on failure.
+ * Verify a signed bundle's DSSE envelope and validate every contract in it.
+ * Returns { valid: true, bundle } on success, or { valid: false } when no signature
+ * verifies. Throws ContractParseError when a verified payload is not a valid bundle.
  */
 export function verifyBundle(signed: SignedBundle, opts: VerifyOptions): { valid: boolean; bundle?: PolicyBundle } {
   const { envelope } = signed;
+  if (envelope.payloadType !== BUNDLE_PAYLOAD_TYPE) return { valid: false };
 
   for (const sig of envelope.signatures) {
     const pae = paeEncode(envelope.payloadType, envelope.payload);
@@ -100,7 +103,11 @@ export function verifyBundle(signed: SignedBundle, opts: VerifyOptions): { valid
     const valid = verifier.verify(opts.publicKey, sig.sig, "base64");
     if (valid) {
       const json = Buffer.from(envelope.payload, "base64").toString("utf-8");
-      const bundle = JSON.parse(json) as PolicyBundle;
+      const bundle = JSON.parse(json) as PolicyBundle | null;
+      if (!bundle || !Array.isArray(bundle.contracts)) {
+        throw new ContractParseError("Signed payload is not a policy bundle", ["/contracts: must be an array"]);
+      }
+      bundle.contracts = bundle.contracts.map(validateContract);
       return { valid: true, bundle };
     }
   }

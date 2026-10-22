@@ -82,9 +82,20 @@ export class MCPRouter {
         continue;
       }
 
-      // Evaluate conditions (if any)
+      // Evaluate conditions (if any); a condition that cannot be evaluated denies instead of skipping the rule.
       if (perm.conditions && perm.conditions.length > 0) {
-        const conditionsMet = this.evaluateConditions(perm.conditions, context);
+        let conditionsMet: boolean;
+        try {
+          conditionsMet = this.evaluateConditions(perm.conditions, context);
+        } catch (err) {
+          return {
+            allowed: false,
+            require_human_approval: false,
+            audit_level: perm.audit_level ?? "full",
+            matched_permission: perm,
+            denial_reason: `Conditions of permission "${perm.tool_pattern}" could not be evaluated: ${err instanceof Error ? err.message : String(err)}`,
+          };
+        }
         if (!conditionsMet) {
           continue; // Conditions not met — skip this permission, try next
         }
@@ -135,20 +146,8 @@ export class MCPRouter {
     };
   }
 
-  /**
-   * Evaluate an array of conditions (implicitly AND-ed).
-   * Uses the synchronous evaluateConditionExpr from the evaluator.
-   */
+  /** Evaluate an array of conditions (implicitly AND-ed) with the synchronous evaluator; throws on an unevaluable one. */
   private evaluateConditions(conditions: PolicyConditionExpr[], context: PolicyContext): boolean {
-    for (const cond of conditions) {
-      try {
-        const result = evaluateConditionExpr(cond, context);
-        if (!result.passed) return false;
-      } catch {
-        // If evaluation fails (e.g. rate_limit without async), treat as not met
-        return false;
-      }
-    }
-    return true;
+    return conditions.every((cond) => evaluateConditionExpr(cond, context).passed);
   }
 }
