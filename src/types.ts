@@ -129,8 +129,6 @@ export interface TrustContract {
   model_bindings?: ModelBinding[];
   /** MCP tool routing permissions: control which MCP tools can be called. */
   mcp_permissions?: MCPPermission[];
-  /** Degradation tiers: progressive capability stripping based on attestation state. */
-  degradation_tiers?: DegradationTier[];
 }
 
 export interface ContractMetadata {
@@ -360,24 +358,6 @@ export interface MCPPermission {
   audit_level?: "full" | "summary" | "none";
 }
 
-// ─── Degradation Tier Types ─────────────────────────────────────────
-
-/** A degradation tier defining progressive capability stripping. */
-export interface DegradationTier {
-  /** Tier level: 0 = full capability, higher = more restricted. */
-  tier: number;
-  /** Human-readable tier name (e.g. "full", "reduced", "read-only", "locked"). */
-  name: string;
-  /** What triggers entry into this tier (e.g. "signature_invalid", "audit_write_failed"). */
-  trigger: string;
-  /** Actions that are still allowed at this tier. */
-  capabilities: string[];
-  /** Actions that are blocked at this tier. */
-  blocked_actions: string[];
-  /** Notification targets (webhook URLs or email addresses). */
-  notify?: string[];
-}
-
 // ─── Human Override Types ───────────────────────────────────────────
 
 /** A cryptographically signed human override of an automated decision. */
@@ -478,16 +458,6 @@ export interface ModelBindingResult {
   reason?: string;
 }
 
-/** Pre-flight check result for secure boot. */
-export interface PreFlightResult {
-  /** Whether the system is ready to operate. */
-  ready: boolean;
-  /** Individual check results. */
-  checks: Array<{ name: string; passed: boolean; detail?: string }>;
-  /** Current degradation tier (0 = fully operational). */
-  degradation_tier: number;
-}
-
 /** Proof bundle verification result. */
 export interface ProofVerificationResult {
   /** Whether the entire bundle is valid. */
@@ -498,98 +468,6 @@ export interface ProofVerificationResult {
   seals_valid: boolean;
   /** Individual check details. */
   details: Array<{ check: string; passed: boolean; detail?: string }>;
-}
-
-// ─── WASM Sandbox Types ─────────────────────────────────────────────
-
-/** Configuration options for the WASM policy sandbox. */
-export interface WasmSandboxOptions {
-  /** Maximum WebAssembly memory pages (64KB each). Default: 256 (16MB). */
-  maxMemoryPages?: number;
-  /** Maximum execution time in milliseconds. Default: 5000. */
-  executionTimeoutMs?: number;
-  /** Maximum number of loaded modules. Default: 32. */
-  maxModules?: number;
-}
-
-/** Resource usage statistics for a loaded WASM module. */
-export interface WasmResourceUsage {
-  /** Current memory usage in bytes. */
-  memoryBytes: number;
-  /** Total number of evaluations performed. */
-  executionCount: number;
-  /** Duration of the last execution in milliseconds. */
-  lastExecutionMs: number;
-}
-
-/** Result of executing an obligation in a sandbox. */
-export interface ObligationResult {
-  /** Whether the obligation was successfully executed. */
-  success: boolean;
-  /** Modified output data (if any). */
-  modifications?: Record<string, unknown>;
-  /** Error message if execution failed. */
-  error?: string;
-}
-
-// ─── VM Sandbox Types ───────────────────────────────────────────────
-
-/** Configuration options for the VM isolate sandbox. */
-export interface SandboxOptions {
-  /** Maximum execution time in milliseconds. Default: 1000. */
-  timeoutMs?: number;
-  /** Extra globals to expose in the sandbox (will be frozen). */
-  allowedGlobals?: Record<string, unknown>;
-  /** Code generation restrictions. */
-  codeGeneration?: { strings: boolean; wasm: boolean };
-}
-
-// ─── Compiled Evaluator Types ───────────────────────────────────────
-
-/** A pre-compiled contract for fast evaluation. */
-export interface CompiledContract {
-  /** Name of the source contract. */
-  contractName: string;
-  /** Version of the source contract. */
-  contractVersion: string;
-  /** Compiled rule evaluators. */
-  compiledRules: CompiledRule[];
-  /** ISO 8601 timestamp of compilation. */
-  compiledAt: string;
-}
-
-/** A single compiled rule ready for fast evaluation. */
-export interface CompiledRule {
-  /** Rule ID from the source contract. */
-  ruleId: string;
-  /** Pre-compiled condition evaluator function. */
-  evaluator: (ctx: PolicyContext) => { passed: boolean; violations: ViolatedCondition[] };
-  /** Whether this rule has rate_limit conditions (needs async fallback). */
-  hasRateLimit: boolean;
-  /** Violation severity. */
-  severity: Severity;
-  /** Rule description. */
-  description: string;
-  /** Rule tags. */
-  tags?: string[];
-  /** Pre-compiled action matcher. */
-  actionMatcher: (action: string) => boolean;
-  /** Original rule obligations (for modify-severity rules). */
-  obligations?: Array<{ obligation_id: string; type: string; params?: Record<string, unknown> }>;
-}
-
-/** Compilation and benchmark statistics. */
-export interface CompilationStats {
-  /** Number of rules compiled. */
-  rulesCompiled: number;
-  /** Time taken to compile in milliseconds. */
-  compilationMs: number;
-  /** Average evaluation time in nanoseconds (populated after benchmark). */
-  avgEvaluationNs?: number;
-  /** Average interpretive evaluation time in nanoseconds (populated after benchmark). */
-  avgInterpretiveNs?: number;
-  /** Speedup factor (interpretive / compiled). */
-  speedup?: number;
 }
 
 // ─── Immutable Audit Storage Types ──────────────────────────────────
@@ -624,152 +502,4 @@ export interface ImmutableStoreStats {
   oldestEntry?: string;
   /** ISO timestamp of the newest entry. */
   newestEntry?: string;
-}
-
-// ─── TLA+ Formal Verification Types ────────────────────────────────
-
-/** Configuration options for TLA+ spec generation and model checking. */
-export interface TLAPlusOptions {
-  /** Path to tla2tools.jar (TLC model checker). */
-  tlcPath?: string;
-  /** Maximum number of states for TLC to explore. */
-  maxStates?: number;
-  /** Output directory for generated spec files. */
-  outputDir?: string;
-}
-
-/** A generated TLA+ specification. */
-export interface TLAPlusSpec {
-  /** TLA+ module name (derived from contract name). */
-  moduleName: string;
-  /** Content of the .tla specification file. */
-  specContent: string;
-  /** Content of the .cfg configuration file. */
-  configContent: string;
-  /** List of generated invariant names. */
-  invariants: string[];
-  /** List of generated temporal property names. */
-  properties: string[];
-}
-
-/** Result of running the TLC model checker. */
-export interface ModelCheckResult {
-  /** Overall status. */
-  status: "passed" | "failed" | "unavailable" | "error";
-  /** Number of states explored by TLC. */
-  statesExplored?: number;
-  /** Counterexample trace if a violation was found. */
-  counterexample?: string;
-  /** Names of invariants that were checked. */
-  invariantsChecked: string[];
-  /** Duration of model checking in milliseconds. */
-  durationMs?: number;
-  /** Raw TLC stdout output. */
-  rawOutput?: string;
-}
-
-// ─── Attestation Types (RATS RFC 9334) ──────────────────────────────
-
-/** A challenge issued by the Verifier for remote attestation. */
-export interface AttestationChallenge {
-  /** Hex-encoded 32-byte random nonce. */
-  nonce: string;
-  /** ISO 8601 timestamp of challenge creation. */
-  timestamp: string;
-  /** Which components to attest (e.g. "contracts", "audit_chain", "system"). */
-  scope?: string[];
-  /** Challenge validity window in milliseconds. */
-  ttlMs: number;
-}
-
-/** Evidence collected by the Attester in response to a challenge. */
-export interface AttestationEvidence {
-  /** The challenge nonce being responded to. */
-  challenge_nonce: string;
-  /** ISO 8601 timestamp of evidence collection. */
-  timestamp: string;
-  /** Individual attestation claims. */
-  claims: AttestationClaim[];
-  /** Ed25519 signature over canonical claims JSON (hex-encoded). */
-  signature: string;
-  /** Ed25519 public key of the attester (hex-encoded). */
-  public_key: string;
-}
-
-/** A single attestation claim (measurement). */
-export interface AttestationClaim {
-  /** Claim type identifier. */
-  type: "contract_hash" | "audit_chain" | "system_state" | "evaluator_hash" | "trust_anchor" | (string & {});
-  /** Claim value (structure depends on type). */
-  value: unknown;
-  /** ISO 8601 timestamp of when the measurement was taken. */
-  measurement_timestamp: string;
-}
-
-/** Verification result from the Verifier. */
-export interface AttestationResult {
-  /** Overall attestation status. */
-  status: "success" | "failure" | "partial";
-  /** Per-claim verification details. */
-  verified_claims: Array<{ type: string; verified: boolean; detail?: string }>;
-  /** ISO 8601 timestamp of verification. */
-  timestamp: string;
-  /** The challenge nonce that was verified. */
-  nonce: string;
-}
-
-/** Policy defining what the Relying Party requires for trust. */
-export interface AttestationPolicy {
-  /** Claim types that must be present and verified. */
-  required_claims: string[];
-  /** Expected reference values for claims. */
-  reference_values: Record<string, unknown>;
-  /** Maximum age of evidence before it's considered stale. */
-  max_evidence_age_ms?: number;
-}
-
-/** Appraisal result from the Relying Party. */
-export interface AppraisalResult {
-  /** Whether the attested entity is trusted. */
-  trusted: boolean;
-  /** Per-claim appraisal details. */
-  details: Array<{ claim: string; met: boolean; reason?: string }>;
-}
-
-/** Configuration options for the attestation service. */
-export interface AttestationOptions {
-  /** Ed25519 key pair for signing evidence. */
-  signingKeyPair?: { publicKey: string; privateKey: string };
-  /** Challenge validity window in milliseconds. Default: 30000. */
-  challengeTtlMs?: number;
-  /** Claim types that must be collected during attestation. */
-  requiredClaims?: string[];
-}
-
-// ─── Hardware Trust Anchor Types ────────────────────────────────────
-
-/** A hardware or software attestation quote. */
-export interface TrustQuote {
-  /** Type of trust anchor that produced this quote. */
-  anchorType: string;
-  /** Public key of the trust anchor (hex-encoded). */
-  publicKey: string;
-  /** Nonce used in the quote. */
-  nonce: string;
-  /** Platform measurements (PCR values or software equivalents). */
-  measurements: Record<string, string>;
-  /** Signature over the quote content (hex-encoded). */
-  signature: string;
-  /** ISO 8601 timestamp. */
-  timestamp: string;
-}
-
-/** Information about a trust anchor's capabilities. */
-export interface TrustAnchorInfo {
-  /** Trust anchor type (e.g. "software", "tpm", "sgx"). */
-  type: string;
-  /** Whether this anchor is available on the current platform. */
-  available: boolean;
-  /** Capabilities supported by this anchor. */
-  capabilities: string[];
 }

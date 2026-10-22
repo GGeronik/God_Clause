@@ -148,22 +148,6 @@ export const trustContractSchema = {
       },
       nullable: true,
     },
-    degradation_tiers: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["tier", "name", "trigger", "capabilities", "blocked_actions"],
-        properties: {
-          tier: { type: "number" },
-          name: { type: "string" },
-          trigger: { type: "string" },
-          capabilities: { type: "array", items: { type: "string" } },
-          blocked_actions: { type: "array", items: { type: "string" } },
-          notify: { type: "array", items: { type: "string" }, nullable: true },
-        },
-      },
-      nullable: true,
-    },
     override_rules: {
       type: "array",
       items: {

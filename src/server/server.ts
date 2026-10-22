@@ -520,21 +520,6 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
         return;
       }
 
-      // ─── Human Override ───────────────────────────────────
-      if (matchRoute(method, url, "POST", "/v1/override")) {
-        const { HumanOverrideManager } = await import("../engine/human-override");
-        const body = JSON.parse(await parseBody(req));
-        const manager = new HumanOverrideManager();
-
-        try {
-          const override = await manager.recordOverride(body);
-          json(res, 201, override);
-        } catch (err: any) {
-          json(res, 400, { error: "invalid_override", message: err.message });
-        }
-        return;
-      }
-
       // ─── Proof Bundle Export ──────────────────────────────
       if (matchRoute(method, url, "GET", "/v1/proof-bundle")) {
         const { ProofBundleBuilder } = await import("../audit/proof-bundle");
@@ -552,66 +537,6 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
         const builder = new ProofBundleBuilder(gov);
         const result = await builder.verify(body, hmacSecret);
         json(res, result.valid ? 200 : 400, result);
-        return;
-      }
-
-      // ─── Boot Pre-flight ──────────────────────────────────
-      if (matchRoute(method, url, "GET", "/v1/boot/preflight")) {
-        const { SecureBoot } = await import("../engine/boot");
-        const result = SecureBoot.verifyPreFlight(gov);
-        json(res, result.ready ? 200 : 503, result);
-        return;
-      }
-
-      // ─── Degradation Status ───────────────────────────────
-      if (matchRoute(method, url, "GET", "/v1/degradation")) {
-        json(res, 200, {
-          current_tier: 0,
-          name: "full",
-          contracts_loaded: gov.getContracts().length,
-          audit_entries: gov.getAuditEntries().length,
-        });
-        return;
-      }
-
-      // ─── Attestation Challenge ──────────────────────────
-      if (matchRoute(method, url, "POST", "/v1/attestation/challenge")) {
-        const { AttestationService } = await import("../attestation/rats");
-        const service = new AttestationService();
-        const body = JSON.parse(await parseBody(req));
-        const scope = body.scope as string[] | undefined;
-        const challenge = service.generateChallenge(scope);
-        json(res, 200, challenge);
-        return;
-      }
-
-      // ─── Attestation Verify ───────────────────────────────
-      if (matchRoute(method, url, "POST", "/v1/attestation/verify")) {
-        const { AttestationService } = await import("../attestation/rats");
-        const service = new AttestationService();
-        const body = JSON.parse(await parseBody(req));
-        const { evidence, challenge } = body;
-        if (!evidence || !challenge) {
-          json(res, 400, { error: "bad_request", message: "evidence and challenge required" });
-          return;
-        }
-        const result = service.verifyEvidence(evidence, challenge);
-        json(res, 200, result);
-        return;
-      }
-
-      // ─── Attestation Status ───────────────────────────────
-      if (matchRoute(method, url, "GET", "/v1/attestation/status")) {
-        const { AttestationService } = await import("../attestation/rats");
-        const service = new AttestationService();
-        const challenge = service.generateChallenge();
-        const evidence = await service.collectEvidence(challenge, gov);
-        const result = service.verifyEvidence(evidence, challenge);
-        json(res, 200, {
-          status: result.status,
-          claims_verified: result.verified_claims.length,
-          details: result.verified_claims,
-        });
         return;
       }
 

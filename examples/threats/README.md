@@ -1,4 +1,4 @@
-# Drop-In Threat Contracts
+# Threat Contracts
 
 Pre-built trust contracts for the most common AI security threats. Each contract is copy-paste ready — load it and get instant protection.
 

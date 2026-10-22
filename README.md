@@ -1,17 +1,17 @@
 # God Clause
 
-**Open-source AI policy engine** — enforce rules, redact PII, prove compliance. Every decision cryptographically sealed.
+**Embeddable TypeScript policy decision point** — YAML rules in, permit / deny / modify decisions out, every decision on a verifiable hash-chained audit log. Bring your own detectors.
 
-> OPA does Allow/Deny. God Clause does Allow/Deny/**Modify** — redact PII, add disclaimers, truncate outputs, all in the critical path. Every decision is SHA-256 hash-chained. Every policy is cryptographically signed.
+> A decision is permit, deny, or **modify**. A modify decision carries obligations (redact PII, add a disclaimer, truncate) that your application applies. Every decision is SHA-256 hash-chained; policies can be DSSE-signed.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-green.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)]()
-[![Tests](https://img.shields.io/badge/tests-504%20passing-brightgreen.svg)]()
+[![CI](https://github.com/GGeronik/God_Clause/actions/workflows/ci.yml/badge.svg)](https://github.com/GGeronik/God_Clause/actions/workflows/ci.yml)
 
 ---
 
-## See It Work: PII Redaction in 10 Lines
+## See It Work: A Modify Decision
 
 ```typescript
 import { GodClause } from "god-clause";
@@ -46,7 +46,7 @@ gov.loadContractYAML(`
       tags: [privacy, pii]
 `);
 
-// LLM returns output containing a Social Security Number
+// Your PII detector flagged the LLM output; pass its signal in as output.contains_pii
 const decision = await gov.evaluate({
   action: "generate",
   input: { prompt: "Look up John's records" },
@@ -65,40 +65,31 @@ const { valid } = gov.verifyAuditChain();
 console.log(valid); // true — tamper-evident proof this decision happened
 ```
 
-**Before**: `"John's SSN is 123-45-6789"`
-**After**: `"John's SSN is [REDACTED]"`
-**Audit**: SHA-256 hash-chained, HMAC-signed, Merkle-sealed.
+God Clause did not detect the SSN and did not rewrite the string. Your detector set `contains_pii`; your code applies the `redact_pii` obligation. The library evaluated the rule, returned a modify decision with the obligation attached, and recorded the decision on a hash-chained, HMAC-signable, Merkle-sealable audit log. [`examples/openai-wrapper.ts`](./examples/openai-wrapper.ts) is the reference pattern: a detector feeding the engine, and the obligation being applied to the response.
 
-No other policy engine does this. OPA blocks or allows. God Clause **transforms**.
+Obligations on a decision are the XACML model, and NeMo Guardrails and Guardrails AI rewrite outputs too. The difference is the packaging: one four-dependency Node package that combines a policy engine, a hash-chained + HMAC + Merkle-sealed audit log, and DSSE-signed policies.
 
 ---
 
 ## Why God Clause?
 
-### For Developers: Drop-in AI safety in 5 lines
+### For developers: a policy decision point you embed
 
 | What you get | How |
 |---|---|
-| PII redaction | `on_violation: modify` + `redact_pii` obligation |
-| Prompt injection blocking | Condition on `input.injection_score` |
-| Toxicity filtering | Condition on `output.toxicity_score` |
+| Three-valued decisions | `on_violation: block`, `warn`, `log` or `modify` per rule |
+| Obligations on modify | Any `type` you define (`redact_pii`, `add_disclaimer`, ...) with `params`; your code applies them |
+| Rules over your detector signals | Conditions on fields you set, such as `output.contains_pii`, `input.injection_score`, `output.toxicity_score` |
 | Rate limiting | Built-in sliding window per user/org |
-| Output truncation | Modify obligation with `max_tokens` |
+| Audit trail | Every decision hash-chained, optionally HMAC-signed and Merkle-sealed |
 
-No sidecars. No Docker. No external services. `npm install god-clause` and write a YAML file.
+The library computes no detection signals. It reads fields you place on `input`, `output`, `caller` and `metadata`. PII, toxicity and injection detection are your job, and so is applying obligations. [`examples/openai-wrapper.ts`](./examples/openai-wrapper.ts) shows both ends.
 
-### For CISOs: Automated compliance evidence
+No sidecars. No external services. `npm install god-clause` and write a YAML file.
 
-| Regulation | What God Clause provides |
-|---|---|
-| EU AI Act Article 12 | Automatic logging of every AI decision with tamper-evident hash chain |
-| SOC 2 CC6.1 | Cryptographic integrity controls via HMAC-SHA256 + Merkle seals |
-| GDPR Article 32 | Technical measures (PII redaction, data governance declarations) |
-| HIPAA | PHI protection rules, role-based access control, audit trails |
-| NIST AI RMF | Policy-based risk management with tag-filtered rule evaluation |
-| ISO 42001 | Documented AI governance with versioned, signed policy contracts |
+### For security and compliance reviewers
 
-Generate compliance reports programmatically: `generateComplianceReport(gov, "eu-ai-act")`.
+The audit log is tamper-evident; it is not a compliance product. God Clause records each decision with the SHA-256 of the policy that produced it, chains entries by hash, and can sign entries with HMAC and seal segments with a Merkle root. It generates no compliance reports and certifies nothing against any framework. [docs/evidence-grade-audit.md](./docs/evidence-grade-audit.md) states what each layer proves and what it does not.
 
 ---
 
@@ -106,9 +97,9 @@ Generate compliance reports programmatically: `generateComplianceReport(gov, "eu
 
 A Trust Contract is a YAML file — but it's not "just configuration."
 
-The SHA-256 hash of your YAML policy is embedded into every audit entry's hash chain. The policy fingerprint (`governance_context.policy_sha256`) is recorded with every decision. Tampering with the contract retroactively invalidates the entire audit trail.
+The SHA-256 of the policy is recorded in every audit entry (`governance_context.policy_sha256`), so each decision is tied to the exact policy version that produced it. Change the contract later and the entries made under the old version still carry the old fingerprint.
 
-Add DSSE cryptographic signatures to prove who authored each policy. Add RFC 3161 timestamps to prove when it was signed. Together: **legally defensible, evidence-grade governance** — not a config file.
+Add a DSSE signature to record who authored each policy version. The result is a policy document with a verifiable author and a verifiable link to every decision it governed, which is more than a config file.
 
 ```yaml
 schema_version: "1.0"
@@ -170,9 +161,9 @@ A lawyer can read it. An engineer can enforce it. An auditor can verify it. Same
 └──────────────────────┬──────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────┐
-│             Evidence-Grade Audit Trail               │
+│                     Audit Trail                      │
 │  SHA-256 hash chain · HMAC-SHA256 signing            │
-│  Merkle seals · RFC 3161 timestamps · OTel export    │
+│  Merkle seals · policy SHA-256 per entry · OTel      │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -187,25 +178,24 @@ A lawyer can read it. An engineer can enforce it. An auditor can verify it. Same
 
 ---
 
-## Evidence-Grade Audit (Why Hash Chains Beat Database Logs)
+## Audit Trail: What Each Layer Proves
 
-Database audit logs can be silently edited by DBAs. Regulators know this. God Clause's audit trail is different:
+A plain database log can be edited by anyone with write access and leaves no trace. God Clause's audit log makes edits detectable:
 
 | Layer | What it proves |
 |---|---|
 | **SHA-256 hash chain** | Each entry links to the previous. Delete or modify any entry → chain breaks → tampering detected |
 | **HMAC-SHA256 signing** | Even if someone recomputes hashes, they need the secret key |
 | **Merkle seal checkpoints** | O(log n) verification over audit segments |
-| **RFC 3161 timestamps** | External trusted clock proves a seal existed at a specific time |
 | **DSSE contract signatures** | Cryptographic proof of who authored each policy |
 
-This is evidence that holds up in regulatory proceedings. Standard database logs don't pass non-repudiation tests.
+What it does not give you: an external clock (entry timestamps come from the host), or any proof of what your application did with the decision. Keep the HMAC key away from whoever can write to the log, or the HMAC layer proves nothing.
 
 ---
 
-## Drop-In Threat Contracts
+## Threat Contracts
 
-Pre-built contracts for common AI threats. Copy into your project and load:
+Pre-built contracts for common AI threats. Each reads detector signals that your application sets on the context; the header comment in each file lists the fields it expects. Copy into your project and load:
 
 | Contract | Threats covered |
 |---|---|
@@ -229,7 +219,7 @@ See also: [domain-specific contracts](./examples/) for healthcare, financial ser
 - **Deny** — action blocked, caller gets structured error
 - **Modify** — action proceeds with **obligations**: redact PII, add disclaimers, require human review, truncate output
 
-No other open-source policy engine provides semantic modification in the decision path.
+Obligations follow the XACML permit-with-obligations model. What God Clause adds is the audit chain and signed policies in the same small package.
 
 ### 12 Condition Operators
 
@@ -269,13 +259,11 @@ conditions:
 - **Contract versioning** — multiple versions with activate/deactivate
 - **Multi-tenancy** — isolated contracts, engine, and audit per tenant
 - **DSSE signing** — cryptographic contract authorship via Dead Simple Signing Envelopes
-- **RFC 3161 timestamps** — external clock anchoring for Merkle seals
 - **OpenTelemetry export** — OTLP/HTTP log mapping for Datadog/Grafana/New Relic
 - **Prometheus metrics** — `godclause_decisions_total`, `godclause_blocks_total`, evaluation duration histograms
-- **REST API server** — standalone PDP with 15+ endpoints, SSE streaming, batch evaluation
-- **CLI tool** — `validate`, `lint`, `summarize`, `diff`, `evaluate`, `serve`, `audit verify/export`, `init`
-- **Web dashboard** — React + Vite + Tailwind with live SSE, contract browser, audit explorer
-- **6 compliance frameworks** — EU AI Act, NIST AI RMF, ISO 42001, SOC 2, GDPR, HIPAA
+- **REST API server** — standalone PDP with 17 endpoints, SSE streaming, batch evaluation
+- **CLI tool** — `validate`, `lint`, `summarize`, `diff`, `evaluate`, `serve`, `audit verify/export`, `init`, `proof-bundle`, `verify-bundle`
+- **MCP tool authorization** — glob-matched, fail-closed routing for Model Context Protocol tool calls
 
 ---
 
@@ -322,31 +310,31 @@ curl -X POST http://localhost:3000/v1/evaluate \
 
 | Feature | God Clause | OPA/Rego | Permit.io | Guardrails AI |
 |---|---|---|---|---|
-| Three-valued decisions (modify) | Yes | No | No | No |
-| Obligations (redact, disclaim, truncate) | Built-in | Custom code | No | No |
-| Human-readable policies | YAML | Rego (code) | UI-only | Python decorators |
-| Cryptographic audit proof | SHA-256 chain + HMAC + Merkle + DSSE | No | No | No |
-| RFC 3161 trusted timestamps | Yes | No | No | No |
-| Compliance report generation | 6 frameworks | No | No | No |
+| Decision outcomes | permit / deny / modify with obligations | Any JSON document; obligations and rewrites are expressible | allow / deny | pass / fix / filter / reask per validator |
+| Output rewriting | Obligations returned to the caller, who applies them | Policy can return a rewritten document; caller applies it | No | Built-in fix actions, including anonymizing validators |
+| Detection (PII, toxicity, injection) | Bring your own; the engine reads your signals | Bring your own | No | Built-in validator hub |
+| Policy format | YAML | Rego | UI, Rego or Cedar via OPAL | Python validators / RAIL |
+| Audit integrity | SHA-256 chain + HMAC + Merkle seals | Decision logs, no chain | Decision logs | No |
+| Signed policies | DSSE envelopes | Signed bundles | Via OPA bundles | No |
 | Rate limiting | Built-in | External | Built-in | No |
-| Multi-tenancy | Built-in isolation | Namespaces | Built-in | No |
-| Embeddable (no server needed) | Yes | Server or WASM | Server | Yes |
-| Runtime dependencies | 4 | Go binary | SaaS | Many |
-| Open-source license | Apache 2.0 | Apache 2.0 | Partial | Apache 2.0 |
+| Multi-tenancy | Isolated scopes | Namespaces | Built-in | No |
+| Embeddable (no server needed) | Yes | Go library or WASM | PDP runs as a container | Yes |
+| Runtime dependencies | 4 | Go binary | PDP + OPAL containers | Many |
+| Open-source license | Apache 2.0 | Apache 2.0 | PDP and OPAL are open source; control plane is a hosted service | Apache 2.0 |
 
 ---
 
 ## The Adoption Path
 
-**Who it's for**: Platform engineering teams at companies building internal GenAI applications who need drop-in PII redaction and automated audit trails to pass SOC 2 or EU AI Act compliance.
+**Who it's for**: Platform engineering teams building internal GenAI applications who already run (or will build) detectors and want one place to turn those signals into enforced, audited decisions.
 
-**Day 1**: `npm install god-clause`. Load `pii-redaction.contract.yaml`. Wrap your LLM calls. PII gets redacted, every decision is hash-chained.
+**Day 1**: `npm install god-clause`. Load `pii-redaction.contract.yaml`. Wrap your LLM calls, pass your PII detector's result in as `output.contains_pii`, apply the obligation the decision returns. Every decision is hash-chained.
 
 **Week 1**: Add `prompt-injection.contract.yaml` and `toxic-content.contract.yaml`. Set up the REST API server so your Python services can call it too.
 
-**Month 1**: Deploy as a Kubernetes sidecar. Connect Prometheus metrics to Grafana. Generate your first SOC 2 compliance report. Hand it to your auditor.
+**Month 1**: Deploy as a Kubernetes sidecar. Connect Prometheus metrics to Grafana. Seal the audit chain on a schedule and export a proof bundle.
 
-**Quarter 1**: Multi-tenancy for different product teams. DSSE-signed contracts in your policy repo. RFC 3161 timestamps on Merkle seals. Your CISO sleeps better.
+**Quarter 1**: Multi-tenancy for different product teams. DSSE-signed contracts in your policy repo, hot-reloaded as signed bundles.
 
 ---
 
@@ -382,12 +370,12 @@ See [full API docs](./docs/) for server endpoints, CLI commands, and configurati
 
 ## Examples
 
-- **[Quick Start](./examples/quickstart.ts)** — 30-line PII redaction with audit verification
+- **[Quick Start](./examples/quickstart.ts)** — 30-line modify decision with audit verification
 - **[OpenAI Wrapper](./examples/openai-wrapper.ts)** — Governance around OpenAI calls
 - **[Claude Wrapper](./examples/anthropic-wrapper.ts)** — Governance around Anthropic Claude calls
 - **[Gemini Wrapper](./examples/gemini-wrapper.ts)** — Governance around Google Gemini calls
 - **[MCP Agent Demo](./examples/mcp-agent-demo.ts)** — MCP tool authorization with fail-closed routing
-- **[Threat Contracts](./examples/threats/)** — 9 drop-in contracts for common AI threats
+- **[Threat Contracts](./examples/threats/)** — 9 contracts for common AI threats; you supply the detector signals
 - **[Healthcare AI](./examples/healthcare-ai.contract.yaml)** — PHI protection, human-in-the-loop
 - **[Financial Services](./examples/financial-services.contract.yaml)** — Regulatory compliance
 - **[LLM Safety](./examples/llm-safety.contract.yaml)** — Prompt injection, toxicity, hallucination

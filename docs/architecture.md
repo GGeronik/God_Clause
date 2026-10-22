@@ -37,26 +37,25 @@ God Clause is a three-layer AI governance chain: **Trust Contracts** define poli
 │  Three-valued output: permit │ deny │ modify (with obligations)  │
 │  Hooks: onDecision, onBlock, onWarn, onLog                       │
 │  Tag filtering: includeTags / excludeTags                        │
-│  Decision cache: SHA-256(context) → TTL cache                    │
 │  Governance context: policy SHA-256 fingerprint per decision     │
 └──────────────────────┬───────────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                   Evidence-Grade Audit System                     │
+│                          Audit System                            │
 │                                                                  │
-│  ┌─────────────────┐   ┌──────────────────┐   ┌──────────────┐ │
+│  ┌─────────────────┐   ┌──────────────────┐   ┌──────────────┐   │
 │  │   Hash Chain     │   │   Merkle Seals   │   │    Sinks      │ │
 │  │  SHA-256 linked  │   │  Binary tree     │   │  Memory       │ │
 │  │  HMAC-SHA256     │   │  checkpoints     │   │  File (JSONL) │ │
 │  │  tamper-evident  │   │  over segments   │   │  Webhook      │ │
-│  └─────────────────┘   └──────────────────┘   │  OTel/OTLP    │ │
-│                                                 │  Multi-sink   │ │
-│  ┌─────────────────┐   ┌──────────────────┐   └──────────────┘ │
-│  │  DSSE Signing    │   │  RFC 3161        │                     │
-│  │  Contract auth   │   │  Timestamps      │   Sampling: permit  │
-│  │  Ed25519/ECDSA   │   │  External clock  │   rate configurable │
-│  └─────────────────┘   └──────────────────┘                     │
+│  └─────────────────┘   └──────────────────┘   │  OTel/OTLP    │  │
+│                                                 │  Multi-sink   ││
+│  ┌─────────────────┐                          └──────────────┘   │
+│  │  DSSE Signing    │                                            │
+│  │  Contract auth   │                          Sampling: permit  │
+│  │  Ed25519/ECDSA   │                          rate configurable │
+│  └─────────────────┘                                             │
 │                                                                  │
 │  Queries: user, action, tenant, trace, tags, date range, rule_id │
 └──────────────────────────────────────────────────────────────────┘
@@ -197,10 +196,10 @@ Audit Entry recorded
 Merkle Seal checkpoint
   │ Compact proof of segment integrity
   ▼
-RFC 3161 Timestamp
-  │ External clock → proves WHEN it happened
-  ▼
-Evidence-grade proof for regulators
+Proof bundle: contracts + entries + seals in one verifiable JSON
+
+Not provided: an external clock (timestamps come from the host), and any
+proof of what the application did with the decision.
 ```
 
 ## Module Dependencies
@@ -211,11 +210,9 @@ governance.ts (GodClause)
 ├── contracts/registry.ts (ContractRegistry)
 ├── contracts/schema.ts (trustContractSchema + AJV)
 ├── contracts/watcher.ts (ContractWatcher — hot-reload)
-├── contracts/changelog.ts (ContractChangeLog)
 ├── engine/policy-engine.ts (PolicyEngine)
-│   ├── engine/evaluator.ts (evaluateRule, evaluateConditionExpr)
-│   │   └── engine/state-store.ts (StateStore, MemoryStateStore)
-│   └── engine/cache.ts (DecisionCache)
+│   └── engine/evaluator.ts (evaluateRule, evaluateConditionExpr)
+│       └── engine/state-store.ts (StateStore, MemoryStateStore)
 ├── audit/audit-log.ts (AuditLog, MemoryAuditSink)
 │   ├── audit/seal.ts (computeMerkleRoot)
 │   ├── audit/file-sink.ts (FileAuditSink)
@@ -224,8 +221,6 @@ governance.ts (GodClause)
 ├── audit/trace.ts (TraceBuilder)
 ├── audit/exporter.ts (CSV, JSON, Summary export)
 ├── crypto/dsse.ts (DSSE contract signing)
-├── crypto/timestamp.ts (RFC 3161 timestamps)
-├── compliance/reporter.ts (ComplianceReport generator)
 ├── tenancy/tenant.ts (TenantScope)
 ├── notifications/webhook.ts (WebhookNotifier)
 ├── observability/otel-sink.ts (OTelAuditSink)
@@ -239,9 +234,9 @@ governance.ts (GodClause)
 
 1. **YAML over Rego/DSL**: Trust contracts are YAML because non-engineers (legal, compliance, ethics boards) need to read and review them. Rego is powerful but opaque to non-developers.
 
-2. **Three-valued decisions**: Binary allow/deny is too rigid for AI governance. "Modify" means "allow, but with obligations" — e.g., redact PII before returning, require human review before acting. No other open-source policy engine provides this.
+2. **Three-valued decisions**: Binary allow/deny is too rigid for AI governance. "Modify" means "allow, but with obligations" — e.g., redact PII before returning, require human review before acting. This is the XACML permit-with-obligations model; the host application applies the obligations, and the library computes no detection signals of its own.
 
-3. **Evidence-grade audit**: Five layers of cryptographic evidence (hash chain, HMAC, Merkle seals, DSSE, RFC 3161), each solving a different trust problem. Standard database logs fail regulatory non-repudiation tests; this stack doesn't. See [Evidence-Grade Audit](./evidence-grade-audit.md).
+3. **Tamper-evident audit**: Four layers (hash chain, HMAC, Merkle seals, DSSE), each solving a different trust problem. Edits to the log are detectable; the log carries no external clock and proves nothing about what the application did with a decision. See [Audit Trail](./evidence-grade-audit.md).
 
 4. **Pluggable everything**: Audit sinks, state stores, and middleware are all interfaces. The core ships with memory/file implementations; production deployments plug in Redis, S3, webhooks, etc.
 
