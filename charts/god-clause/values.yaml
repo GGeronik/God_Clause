@@ -1,3 +1,5 @@
+# More than one replica needs audit.persistence.enabled=false (or one audit volume per pod):
+# several servers appending to the same audit.jsonl fork the hash chain.
 replicaCount: 1
 
 image:
@@ -12,11 +14,13 @@ service:
 server:
   port: 3000
   logLevel: "info"
-  # HMAC secret for audit chain signing
-  # Use existingSecret instead for production
+  # Secret for HMAC signing of the audit chain and the bearer token clients must send.
+  # Leave both blank and set existingSecret (keys: hmac-secret, api-token) in production.
   hmacSecret: ""
+  apiToken: ""
   existingSecret: ""
   existingSecretKey: "hmac-secret"
+  apiTokenSecretKey: "api-token"
 
 audit:
   # Directory for audit log files inside the container
@@ -27,7 +31,8 @@ audit:
     storageClass: ""
 
 contracts:
-  # Mount contracts from a ConfigMap
+  # Required. ConfigMap mounted at /app/contracts, where the server loads contracts from;
+  # without a contract the server answers 503 and the pod never becomes ready.
   configMapName: ""
 
 resources:

@@ -260,4 +260,21 @@ describe("Proof Bundle Builder", () => {
 
     expect(b1.bundle_id).not.toBe(b2.bundle_id);
   });
+
+  it("fails a seal whose range is not in the bundle", async () => {
+    const gov = new GodClause();
+    gov.loadContractYAML(testContract);
+    await gov.evaluate(makeCtx());
+    const seal = gov.sealAuditChain();
+
+    const builder = new ProofBundleBuilder(gov);
+    const bundle = await builder.build({ seals: [seal] });
+    bundle.merkle_seals[0].from_entry_id = "missing";
+
+    const result = await builder.verify(bundle);
+    expect(result.seals_valid).toBe(false);
+    expect(result.details.find((d) => d.check.startsWith("merkle_seal"))?.detail).toBe(
+      "Seal range not found in bundle",
+    );
+  });
 });

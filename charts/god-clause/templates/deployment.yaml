@@ -1,3 +1,9 @@
+{{- if not .Values.contracts.configMapName }}
+{{- fail "contracts.configMapName is required: the server answers 503 until a contract is loaded, so the pod would never become ready" }}
+{{- end }}
+{{- if and .Values.audit.persistence.enabled (gt (int .Values.replicaCount) 1) }}
+{{- fail "audit.persistence supports one replica: several servers appending to one audit.jsonl fork the hash chain" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,17 +39,31 @@ spec:
               value: "{{ .Values.server.port }}"
             - name: LOG_LEVEL
               value: "{{ .Values.server.logLevel }}"
+            - name: CONTRACTS_DIR
+              value: /app/contracts
             - name: AUDIT_DIR
               value: "{{ .Values.audit.dir }}"
             {{- if .Values.server.existingSecret }}
-            - name: HMAC_SECRET
+            - name: AUDIT_HMAC_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.server.existingSecret }}
                   key: {{ .Values.server.existingSecretKey }}
-            {{- else if .Values.server.hmacSecret }}
-            - name: HMAC_SECRET
-              value: "{{ .Values.server.hmacSecret }}"
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.server.existingSecret }}
+                  key: {{ .Values.server.apiTokenSecretKey }}
+                  optional: true
+            {{- else }}
+            {{- if .Values.server.hmacSecret }}
+            - name: AUDIT_HMAC_SECRET
+              value: {{ .Values.server.hmacSecret | quote }}
+            {{- end }}
+            {{- if .Values.server.apiToken }}
+            - name: API_TOKEN
+              value: {{ .Values.server.apiToken | quote }}
+            {{- end }}
             {{- end }}
           livenessProbe:
             httpGet:
@@ -64,7 +84,7 @@ spec:
               mountPath: {{ .Values.audit.dir }}
             {{- if .Values.contracts.configMapName }}
             - name: contracts
-              mountPath: /contracts
+              mountPath: /app/contracts
               readOnly: true
             {{- end }}
       volumes:
