@@ -9,15 +9,13 @@
 # - Output length control
 #
 # Usage:
-#   # Load as-is for immediate protection:
 #   gov.loadContractYAML(fs.readFileSync("base-safety.contract.yaml", "utf-8"));
 #
-#   # Or extend in a child contract:
-#   extends: "Base Safety Policy"
-#   metadata:
-#     name: Healthcare Safety
-#   rules:
-#     - id: HC-001  # Additional rules merged with base
+# Your application must:
+#   1. Set output.toxicity_score (0.0-1.0), output.contains_pii and input.injection_score (0.0-1.0);
+#      the matching rules fail closed when one is missing
+#   2. Optionally set output.token_count and output.confidence; BASE-LEN-001 and BASE-CONF-001
+#      only apply when they are present
 
 schema_version: "1.0"
 metadata:
@@ -95,12 +93,16 @@ rules:
 
   # --- Output Control ---
   - id: BASE-LEN-001
-    description: Enforce output token limit
+    description: Enforce output token limit (only when a token count is supplied)
     action: generate
     conditions:
-      - field: output.token_count
-        operator: less_than
-        value: 8192
+      - any:
+          - field: output.token_count
+            operator: not_exists
+            value: true
+          - field: output.token_count
+            operator: less_than
+            value: 8192
     on_violation: modify
     obligations:
       - obligation_id: OBL-BASE-TRUNCATE
@@ -111,12 +113,16 @@ rules:
 
   # --- Quality ---
   - id: BASE-CONF-001
-    description: Disclaim low-confidence outputs
+    description: Disclaim low-confidence outputs (only when a confidence is supplied)
     action: generate
     conditions:
-      - field: output.confidence
-        operator: greater_than
-        value: 0.6
+      - any:
+          - field: output.confidence
+            operator: not_exists
+            value: true
+          - field: output.confidence
+            operator: greater_than
+            value: 0.6
     on_violation: modify
     obligations:
       - obligation_id: OBL-BASE-DISCLAIMER

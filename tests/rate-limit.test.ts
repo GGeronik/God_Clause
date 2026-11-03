@@ -94,13 +94,13 @@ describe("Rate Limiting", () => {
     expect(bobD.allowed).toBe(true);
   });
 
-  it("denies without state store", async () => {
-    const gov = new GodClause(); // no stateStore
+  it("works without an explicit state store (in-memory default)", async () => {
+    const gov = new GodClause();
     gov.loadContractYAML(rateLimitContract);
 
-    const decision = await gov.evaluate(makeCtx());
-    expect(decision.outcome).toBe("deny");
-    expect(decision.blocks[0].error).toContain("StateStore");
+    const outcomes = [];
+    for (let i = 0; i < 4; i++) outcomes.push((await gov.evaluate(makeCtx())).outcome);
+    expect(outcomes).toEqual(["permit", "permit", "permit", "deny"]);
   });
 
   it("clears state store", async () => {

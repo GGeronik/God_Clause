@@ -3,6 +3,7 @@ import Ajv from "ajv";
 import { TrustContract, PolicyRule, PolicyConditionExpr, RateLimitValue } from "../types";
 import { trustContractSchema } from "./schema";
 import { parseISO8601Duration } from "../engine/state-store";
+import { compilePattern } from "../engine/evaluator";
 import type { ContractRegistry } from "./registry";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -70,7 +71,7 @@ function checkConditionValues(contract: TrustContract): string[] {
         return;
       }
       try {
-        new RegExp(expr.value);
+        compilePattern(expr.value);
       } catch (err) {
         problems.push(`${path}/value: ${(err as Error).message}`);
       }

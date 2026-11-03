@@ -6,8 +6,10 @@
 #   gov.loadContractYAML(fs.readFileSync("pii-redaction.contract.yaml", "utf-8"));
 #
 # Your application must:
-#   1. Set output.contains_pii, output.contains_ssn, etc. based on your PII detector
-#   2. Handle "redact_pii" obligations by replacing matched patterns with [REDACTED]
+#   1. Set output.contains_pii from your PII detector; PII-001 fails closed (redacts) when it is missing
+#   2. Optionally set output.contains_ssn, contains_credit_card, contains_email and contains_phone;
+#      PII-002..005 only apply when the flag is present
+#   3. Handle "redact_pii" obligations by replacing matched patterns with [REDACTED]
 #
 # Compliance: GDPR Art 32, HIPAA, SOC 2 CC6.1, EU AI Act Art 10
 
@@ -51,9 +53,13 @@ rules:
     description: Block outputs containing Social Security Numbers
     action: "*"
     conditions:
-      - field: output.contains_ssn
-        operator: equals
-        value: false
+      - any:
+          - field: output.contains_ssn
+            operator: not_exists
+            value: true
+          - field: output.contains_ssn
+            operator: equals
+            value: false
     on_violation: block
     message: "Output contains Social Security Number — blocked"
     tags: [privacy, pii, critical]
@@ -62,20 +68,28 @@ rules:
     description: Block outputs containing credit card numbers
     action: "*"
     conditions:
-      - field: output.contains_credit_card
-        operator: equals
-        value: false
+      - any:
+          - field: output.contains_credit_card
+            operator: not_exists
+            value: true
+          - field: output.contains_credit_card
+            operator: equals
+            value: false
     on_violation: block
     message: "Output contains credit card number — blocked"
     tags: [privacy, pci-dss, critical]
 
   - id: PII-004
-    description: Warn when email addresses appear in outputs
+    description: Redact email addresses that appear in outputs
     action: generate
     conditions:
-      - field: output.contains_email
-        operator: equals
-        value: false
+      - any:
+          - field: output.contains_email
+            operator: not_exists
+            value: true
+          - field: output.contains_email
+            operator: equals
+            value: false
     on_violation: modify
     obligations:
       - obligation_id: OBL-REDACT-EMAIL
@@ -86,12 +100,16 @@ rules:
     tags: [privacy, pii]
 
   - id: PII-005
-    description: Log when phone numbers appear (for audit trail)
+    description: Redact phone numbers that appear in outputs
     action: generate
     conditions:
-      - field: output.contains_phone
-        operator: equals
-        value: false
+      - any:
+          - field: output.contains_phone
+            operator: not_exists
+            value: true
+          - field: output.contains_phone
+            operator: equals
+            value: false
     on_violation: modify
     obligations:
       - obligation_id: OBL-REDACT-PHONE

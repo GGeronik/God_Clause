@@ -3,13 +3,13 @@
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("cost-control.contract.yaml", "utf-8"));
-#   // Requires a StateStore for rate limiting:
-#   const gov = new GodClause({ stateStore: new MemoryStateStore() });
+#   // Rate limits count in memory by default; share a StateStore when you run several processes:
+#   const gov = new GodClause({ stateStore: myRedisBackedStore });
 #
 # Your application must:
-#   1. Set output.token_count with the response token count
-#   2. Set metadata.model with the model name being used
-#   3. Set metadata.estimated_cost_usd if cost estimation is available
+#   1. Set output.token_count with the response token count; COST-003/004 fail closed when it is missing
+#   2. Set metadata.model with the model name; COST-007 warns on the expensive-model list — edit it for your providers
+#   3. Optionally set metadata.estimated_cost_usd; COST-005/006 only apply when it is present
 #
 # Compliance: SOC 2 CC6.6 (system operations), internal cost governance
 
@@ -86,23 +86,42 @@ rules:
     tags: [cost-control, token-limit, critical]
 
   - id: COST-005
-    description: Warn on high-cost requests
+    description: Warn on high-cost requests (only when a cost estimate is supplied)
     action: generate
     conditions:
-      - field: metadata.estimated_cost_usd
-        operator: less_than
-        value: 1.0
+      - any:
+          - field: metadata.estimated_cost_usd
+            operator: not_exists
+            value: true
+          - field: metadata.estimated_cost_usd
+            operator: less_than
+            value: 1.0
     on_violation: warn
     message: "Request estimated cost exceeds $1.00"
     tags: [cost-control, budget]
 
   - id: COST-006
-    description: Block very high-cost requests
+    description: Block very high-cost requests (only when a cost estimate is supplied)
     action: generate
     conditions:
-      - field: metadata.estimated_cost_usd
-        operator: less_than
-        value: 10.0
+      - any:
+          - field: metadata.estimated_cost_usd
+            operator: not_exists
+            value: true
+          - field: metadata.estimated_cost_usd
+            operator: less_than
+            value: 10.0
     on_violation: block
     message: "Request estimated cost exceeds $10.00 — requires approval"
     tags: [cost-control, budget, critical]
+
+  - id: COST-007
+    description: Warn when an expensive model is used — edit the list for your providers
+    action: "*"
+    conditions:
+      - field: metadata.model
+        operator: not_in
+        value: ["gpt-4-32k", "claude-3-opus", "o1-pro"]
+    on_violation: warn
+    message: "Expensive model selected — confirm the request needs it"
+    tags: [cost-control, model-selection]

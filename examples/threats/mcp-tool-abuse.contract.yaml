@@ -12,12 +12,15 @@
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("mcp-tool-abuse.contract.yaml", "utf-8"));
+#   const decision = await gov.evaluate({ action: "mcp_call", input: toolArguments, caller,
+#                                         metadata: { mcp_tool: "database.query" } });
 #
 # Your application must:
-#   1. Set metadata.mcp_tool with the tool name being invoked (e.g. "database.query")
+#   1. Evaluate each tool invocation with action "mcp_call" and metadata.mcp_tool set to the tool
+#      name; the engine then applies the mcp_permissions list below (first match wins, fail closed)
+#      and records the decision in the audit chain
 #   2. Set metadata.data_classification if the tool accesses classified data
-#   3. Implement a human-approval callback for tools marked require_human_approval
-#   4. Connect an audit sink — every tool invocation is logged by this contract
+#   3. Treat a "require_review" obligation as "ask a human before running the tool"
 #
 # Compliance: SOC 2 CC6.1, NIST AI RMF MAP 1.5, EU AI Act Art 14 (human oversight)
 
@@ -43,19 +46,20 @@ data_governance:
 
 rules:
   - id: MCP-AUDIT-001
-    description: Log all MCP tool invocations for audit trail
-    action: "*"
+    description: Mark every MCP tool invocation in the decision's logs
+    action: mcp_call
     conditions:
+      # Fails whenever a tool name is present, so each invocation lists MCP-AUDIT-001 under logs.
       - field: metadata.mcp_tool
-        operator: exists
+        operator: not_exists
         value: true
-    on_violation: warn
-    message: "MCP tool invocation logged for audit"
+    on_violation: log
+    message: "MCP tool invocation"
     tags: [mcp, audit, observability]
 
   - id: MCP-PRIV-001
     description: Block MCP tools from accessing classified data
-    action: "*"
+    action: mcp_call
     conditions:
       - field: metadata.data_classification
         operator: not_in
@@ -66,7 +70,7 @@ rules:
 
   - id: MCP-PRIV-002
     description: Block MCP tool invocations that lack a tool name
-    action: "*"
+    action: mcp_call
     conditions:
       - field: metadata.mcp_tool
         operator: exists

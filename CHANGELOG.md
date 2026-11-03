@@ -5,6 +5,7 @@ All notable changes to God Clause are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Regex flags**: a `matches` value may be `/pattern/flags` (`i`, `m`, `s`, `u`); unknown flags are rejected at load
 - **Server auth and limits**: `API_TOKEN` / `--api-token` bearer authentication (scheme case-insensitive, constant-time compare) on every endpoint except `/v1/health` and `/v1/ready`; `MAX_BODY_BYTES` (default 1 MiB) request-body cap answered with 413; 10 s header and 30 s request timeouts
 - **Chain verification exports**: `canonicalJson`, `hashAuditEntry`, `verifyAuditEntries(entries, key?, { prevHash?, headHash? })`; `audit verify --prev-hash` and `--head`
 - **Chain resume**: `auditHeadHash` option and `AuditLog.headHash`; `FileAuditSink.lastHash(path)` reads the head from a file and the REST server resumes from `AUDIT_DIR/audit.jsonl`
@@ -53,6 +54,10 @@ Scaffolding that existed so a README bullet could be true, but did not do what t
 - `docs/compliance.md`
 
 ### Changed
+- `PolicyEngine` (and so `GodClause` and `TenantScope`) uses an in-memory `StateStore` when none is given, so `rate_limit` rules work out of the box; pass a shared store for several processes.
+- `evaluate()` applies the loaded contracts' `mcp_permissions` when `metadata.mcp_tool` names a tool (first match wins, fail closed): a denied tool blocks under rule id `MCP-PERMISSIONS`, `require_human_approval` becomes a `require_review` obligation, and the decision is audited like any other.
+- `not_contains` fails when the field is missing or not a string/array, so category-based rules fail closed as their headers say.
+- Threat contracts: optional signals (`nsfw_score`, `estimated_cost_usd`, the per-type PII flags, the base template's `token_count` and `confidence`) are guarded with `not_exists` so their rules only apply when the field is supplied; required signals still fail closed, and every header now says which is which. `prompt-injection` patterns are case-insensitive, whitespace-tolerant regexes covering disregard/forget/"the above" and verb-anchored extraction phrasings, and a non-string prompt is blocked (`INJ-000`); `cost-control` gained the expensive-model warning its header promised; `mcp-tool-abuse` rules are scoped to `action: mcp_call` so composing it no longer denies every other request, and its audit rule marks every tool invocation; `data-leakage`, `copyright-protection` and the compliance template document every field their rules read.
 - Policy hooks (`onDecision`, `onBlock`, `onWarn`, `onLog`) receive the contracts the decision was evaluated against as a second argument.
 - README and docs now state that the library computes no detection signals (`output.contains_pii`, `toxicity_score`, `injection_score` are read, never produced) and that the host applies obligations; `examples/openai-wrapper.ts` is the reference
 - README comparison table corrected for OPA (arbitrary JSON output, signed bundles), Permit.io (PDP and OPAL are open source) and Guardrails AI (fix/filter/reask outcomes, anonymizing fix actions); RFC 3161 and compliance-report rows dropped

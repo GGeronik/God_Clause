@@ -56,6 +56,14 @@ function drillDown(obj: unknown, segments: string[]): unknown {
   return current;
 }
 
+/** A `matches` value is a bare pattern or `/pattern/flags` with flags from i, m, s, u. */
+export function compilePattern(value: string): RegExp {
+  const slashed = /^\/(.*)\/([a-z]*)$/s.exec(value);
+  if (!slashed) return new RegExp(value);
+  if (!/^[imsu]*$/.test(slashed[2])) throw new SyntaxError(`Unsupported regex flags "${slashed[2]}" (use i, m, s, u)`);
+  return new RegExp(slashed[1], slashed[2]);
+}
+
 export function evaluateOperator(operator: ConditionOperator, actual: unknown, expected: unknown): boolean {
   switch (operator) {
     case "equals":
@@ -69,7 +77,7 @@ export function evaluateOperator(operator: ConditionOperator, actual: unknown, e
     case "not_contains":
       if (typeof actual === "string" && typeof expected === "string") return !actual.includes(expected);
       if (Array.isArray(actual)) return !actual.includes(expected);
-      return true;
+      return false; // a missing container cannot prove absence: fail closed
     case "greater_than":
       return typeof actual === "number" && typeof expected === "number" && actual > expected;
     case "less_than":
@@ -80,7 +88,7 @@ export function evaluateOperator(operator: ConditionOperator, actual: unknown, e
       return Array.isArray(expected) && !expected.includes(actual);
     case "matches":
       if (typeof actual === "string" && typeof expected === "string") {
-        return new RegExp(expected).test(actual);
+        return compilePattern(expected).test(actual);
       }
       return false;
     case "exists":

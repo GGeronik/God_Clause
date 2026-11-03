@@ -7,7 +7,8 @@
 #
 # Your application must:
 #   1. Set input.injection_score from your injection classifier (0.0-1.0)
-#   2. Set input.prompt with the raw user prompt for regex matching
+#   2. Set input.prompt to the raw user prompt as ONE string (join chat turns yourself); a missing or
+#      non-string prompt is blocked by INJ-000. INJ-003..005 are case-insensitive regexes you can extend
 #
 # Compliance: NIST AI RMF GOVERN-1, EU AI Act Art 15, SOC 2
 
@@ -53,46 +54,50 @@ rules:
     message: "Possible prompt injection attempt detected"
     tags: [security, prompt-injection]
 
+  - id: INJ-000
+    description: The prompt must be a single string so the patterns below can see it
+    action: "*"
+    conditions:
+      # `matches` fails on a missing or non-string value, so this blocks an absent prompt or a messages array.
+      - field: input.prompt
+        operator: matches
+        value: "/^/"
+    on_violation: block
+    message: "input.prompt missing or not a string — join chat turns into one string"
+    tags: [security, prompt-injection]
+
   - id: INJ-003
     description: Block "ignore previous instructions" patterns
     action: "*"
     conditions:
-      - field: input.prompt
-        operator: not_contains
-        value: "ignore previous"
+      - not:
+          field: input.prompt
+          operator: matches
+          value: "/\\b(ignore|disregard|forget|override)\\s+(all\\s+|any\\s+)?(of\\s+)?(the\\s+|your\\s+|my\\s+)?((previous|prior|above|earlier|preceding)\\s+(instructions|prompts?|rules|messages?|directions|commands)|(everything\\s+)?above\\b|instructions\\s+above)/i"
     on_violation: block
-    message: "Prompt contains 'ignore previous' injection pattern"
+    message: "Prompt contains an 'ignore previous instructions' injection pattern"
     tags: [security, prompt-injection]
 
   - id: INJ-004
     description: Block system prompt extraction attempts
     action: "*"
     conditions:
-      - all:
-          - field: input.prompt
-            operator: not_contains
-            value: "system prompt"
-          - field: input.prompt
-            operator: not_contains
-            value: "initial instructions"
+      - not:
+          field: input.prompt
+          operator: matches
+          value: "/\\b(reveal|show|print|repeat|output|display|leak|dump|tell me|what (is|are|were))\\b.{0,30}\\b(your|the)\\s+(system[\\s-]*prompt|initial\\s+(instructions|prompt)|hidden\\s+instructions|instructions|text above)/i"
     on_violation: block
     message: "System prompt extraction attempt detected"
     tags: [security, prompt-injection]
 
   - id: INJ-005
-    description: Block role hijacking attempts
+    description: Warn on role hijacking attempts
     action: "*"
     conditions:
-      - all:
-          - field: input.prompt
-            operator: not_contains
-            value: "you are now"
-          - field: input.prompt
-            operator: not_contains
-            value: "act as"
-          - field: input.prompt
-            operator: not_contains
-            value: "pretend you"
+      - not:
+          field: input.prompt
+          operator: matches
+          value: "/\\b(you\\s+are\\s+now|you're\\s+now|from\\s+now\\s+on,?\\s+you|act\\s+(as|like)\\s+(a|an|if|dan)\\b|pretend\\s+(you\\s+are|you're|to\\s+be)|roleplay\\s+as|developer\\s+mode)/i"
     on_violation: warn
     message: "Possible role hijacking attempt"
     tags: [security, prompt-injection]
