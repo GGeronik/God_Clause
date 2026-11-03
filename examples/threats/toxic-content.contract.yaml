@@ -5,9 +5,9 @@
 #   gov.loadContractYAML(fs.readFileSync("toxic-content.contract.yaml", "utf-8"));
 #
 # Your application must:
-#   1. Set output.toxicity_score from your toxicity classifier (0.0-1.0)
+#   1. Set output.toxicity_score from your toxicity classifier (0.0-1.0); TOX-001 blocks when it is missing
 #   2. Set output.categories array with detected content categories
-#   3. Optionally set output.nsfw_score for NSFW detection
+#   3. Optionally set output.nsfw_score; TOX-005 only applies when it is present
 #
 # Compliance: EU AI Act Art 5, SOC 2 CC1.1
 
@@ -76,12 +76,16 @@ rules:
     tags: [content-safety, self-harm, critical]
 
   - id: TOX-005
-    description: Block NSFW content
+    description: Block NSFW content (only when an nsfw_score is supplied)
     action: generate
     conditions:
-      - field: output.nsfw_score
-        operator: less_than
-        value: 0.5
+      - any:
+          - field: output.nsfw_score
+            operator: not_exists
+            value: true
+          - field: output.nsfw_score
+            operator: less_than
+            value: 0.5
     on_violation: block
     message: "NSFW content detected — blocked"
     tags: [content-safety, nsfw]

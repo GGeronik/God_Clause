@@ -11,7 +11,8 @@ import {
   GovernanceContext,
 } from "../types";
 import { evaluateRule } from "./evaluator";
-import type { StateStore } from "./state-store";
+import { MCPRouter } from "./mcp-router";
+import { MemoryStateStore, type StateStore } from "./state-store";
 
 /** Receives the decision and the contracts it was evaluated against (a snapshot; later reloads do not change it). */
 export type PolicyHook = (decision: PolicyDecision, contracts: ReadonlyArray<TrustContract>) => void | Promise<void>;
@@ -25,7 +26,7 @@ export interface PolicyEngineOptions {
   onWarn?: PolicyHook;
   /** Called when a decision produces log-level violations. */
   onLog?: PolicyHook;
-  /** State store for rate limiting conditions. */
+  /** State store for rate limiting conditions. Defaults to an in-memory store; pass a shared one for several processes. */
   stateStore?: StateStore;
 }
 
@@ -36,11 +37,11 @@ export interface PolicyEngineOptions {
 export class PolicyEngine {
   private contracts: TrustContract[] = [];
   private hooks: PolicyEngineOptions;
-  private stateStore?: StateStore;
+  private stateStore: StateStore;
 
   constructor(opts: PolicyEngineOptions = {}) {
     this.hooks = opts;
-    this.stateStore = opts.stateStore;
+    this.stateStore = opts.stateStore ?? new MemoryStateStore();
   }
 
   /** Register a trust contract with the engine; the same name and version replaces the earlier copy. */
@@ -128,6 +129,38 @@ export class PolicyEngine {
         evaluation.contract_version = contract.metadata.version;
 
         allEvaluations.push(evaluation);
+      }
+    }
+
+    // A tool invocation (metadata.mcp_tool) is also judged by the contracts' mcp_permissions: first match wins, fail closed.
+    const tool = ctx.metadata?.mcp_tool;
+    const permissions = contracts.flatMap((c) => c.mcp_permissions ?? []);
+    if (typeof tool === "string" && permissions.length > 0) {
+      const result = await new MCPRouter(permissions, this.stateStore).authorize(
+        { tool_name: tool, arguments: ctx.input ?? {}, session_id: ctx.caller.session_id },
+        ctx,
+      );
+      if (!result.allowed || result.require_human_approval) {
+        allEvaluations.push({
+          rule_id: "MCP-PERMISSIONS",
+          rule_description: result.allowed
+            ? `Tool "${tool}" requires human approval`
+            : (result.denial_reason ?? `Tool "${tool}" denied`),
+          passed: false,
+          severity: result.allowed ? "modify" : "block",
+          violated_conditions: [],
+          timestamp: new Date().toISOString(),
+          obligations: result.allowed
+            ? [
+                {
+                  obligation_id: "OBL-MCP-HUMAN-APPROVAL",
+                  type: "require_review",
+                  params: { tool },
+                  source_rule_id: "MCP-PERMISSIONS",
+                },
+              ]
+            : undefined,
+        });
       }
     }
 

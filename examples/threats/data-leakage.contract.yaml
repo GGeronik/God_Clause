@@ -8,6 +8,8 @@
 #   1. Set output.data_classification with the detected class (public/internal/confidential/restricted)
 #   2. Set output.contains_internal_data boolean
 #   3. Set metadata.destination with the output destination (internal/external/public)
+#   4. Set output.contains_internal_ids boolean; DLP-005 redacts when it is true or missing
+#   5. Optionally set metadata.cross_border: true when the output leaves the permitted region; DLP-004 blocks it
 #
 # Compliance: SOC 2 CC6.1, GDPR Art 32, ISO 27001 A.8.2, NIST AI RMF
 

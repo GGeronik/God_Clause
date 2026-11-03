@@ -30,7 +30,9 @@ gov.loadContractYAML(fs.readFileSync("prompt-injection.contract.yaml", "utf-8"))
 
 ## How These Work
 
-Each contract expects your application to set specific fields on the `output` and `input` objects. For example, `pii-redaction` expects `output.contains_pii` to be set by your PII detection pipeline.
+Each contract expects your application to set specific fields on the `output` and `input` objects. For example, `pii-redaction` expects `output.contains_pii` to be set by your PII detection pipeline. God Clause computes none of these signals itself.
+
+Each contract's header splits the fields into two kinds. A required signal fails closed: when it is missing, its rule fires as if the check had failed (`toxicity_score` missing blocks, `contains_pii` missing redacts). An optional signal is guarded with `not_exists`, so its rule only applies when you supply the field (`nsfw_score`, `estimated_cost_usd`, the per-type PII flags). Rate-limit rules count in memory by default; pass a shared `StateStore` to `GodClause` when you run more than one process.
 
 God Clause evaluates conditions and returns a decision:
 - **Block** — stop the response from reaching the user

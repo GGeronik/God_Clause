@@ -9,6 +9,15 @@
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("base-compliance.contract.yaml", "utf-8"));
+#
+# Your application must:
+#   1. Set output.data_classification (public/internal/confidential/restricted); COMP-DATA-001 blocks
+#      restricted and confidential, a missing value passes
+#   2. Set metadata.ai_disclosure: true once the output carries an AI notice; COMP-TRANS-001 appends one
+#      when it is false or missing
+#   3. Optionally set output.data_minimization_check: true after checking the output for excess data;
+#      COMP-MIN-001 warns when it is false or missing
+#   4. Send caller.user_id and caller.session_id (the context type requires them)
 
 schema_version: "1.0"
 metadata:

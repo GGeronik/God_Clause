@@ -113,12 +113,12 @@ conditions:
 | `equals` | any | Exact equality |
 | `not_equals` | any | Not equal |
 | `contains` | string, array | String includes substring, or array includes element |
-| `not_contains` | string, array | Opposite of contains |
+| `not_contains` | string, array | Opposite of contains; fails when the field is missing or not a string/array |
 | `greater_than` | number | Strictly greater |
 | `less_than` | number | Strictly less |
 | `in` | any | Value is in the provided array |
 | `not_in` | any | Value is not in the provided array |
-| `matches` | string | Regex match (value is the pattern) |
+| `matches` | string | Regex match; the value is a bare pattern or `/pattern/flags` with flags from `i`, `m`, `s`, `u` (escape a leading slash as `\/` to match it literally). Fails on a missing or non-string field |
 | `exists` | any | Field is present and not undefined |
 | `not_exists` | any | Field is absent or undefined |
 | `rate_limit` | string (key field) | Sliding window rate counter |
@@ -136,11 +136,11 @@ conditions:
 
 Supported duration formats: `PT30S` (30 seconds), `PT5M` (5 minutes), `PT1H` (1 hour), `PT1H30M` (90 minutes), `P1D` (1 day), `P7D` (7 days), `P7DT12H` (7.5 days)
 
-Requires a `StateStore` to be configured:
+Counters live in an in-memory `StateStore` by default, scoped per rule. When several processes must share a limit, pass a store backed by shared storage:
 
 ```typescript
-import { GodClause, MemoryStateStore } from "god-clause";
-const gov = new GodClause({ stateStore: new MemoryStateStore() });
+import { GodClause } from "god-clause";
+const gov = new GodClause({ stateStore: myRedisBackedStore }); // implements StateStore
 ```
 
 #### Composite Conditions
