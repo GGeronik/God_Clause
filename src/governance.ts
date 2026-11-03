@@ -55,14 +55,13 @@ export class GodClause {
 
     this.engine = new PolicyEngine({
       ...opts,
-      async onDecision(decision) {
-        // Record in audit log for every active contract; a no-contract deny is recorded too.
-        const active = self.registry.getAllActive();
-        if (active.length === 0) await self.auditLog.record(decision);
-        for (const contract of active) {
+      async onDecision(decision, contracts) {
+        // Record against the contracts this decision was evaluated with; a no-contract deny is recorded too.
+        if (contracts.length === 0) await self.auditLog.record(decision);
+        for (const contract of contracts) {
           await self.auditLog.record(decision, contract);
         }
-        if (userOnDecision) await userOnDecision(decision);
+        if (userOnDecision) await userOnDecision(decision, contracts);
       },
     });
 
@@ -88,13 +87,19 @@ export class GodClause {
     this.engine.loadContract(contract);
   }
 
+  /** Replace every loaded contract with this set; all are validated before anything is dropped. */
+  replaceContracts(contracts: TrustContract[]): void {
+    contracts.forEach(validateContract);
+    this.registry.clear();
+    this.engine.clearContracts();
+    for (const contract of contracts) this.loadContract(contract);
+  }
+
   /** Load a contract version without necessarily activating it. */
   loadContractVersion(source: string, opts: { activate?: boolean } = {}): TrustContract {
     const contract = parseContract(source);
     this.registry.register(contract, { activate: opts.activate });
-    if (opts.activate !== false) {
-      this.engine.loadContract(contract);
-    }
+    this.syncEngineContracts();
     return contract;
   }
 

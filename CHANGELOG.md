@@ -9,6 +9,10 @@ All notable changes to God Clause are documented in this file.
 - **Chain resume**: `auditHeadHash` option and `AuditLog.headHash`; `FileAuditSink.lastHash(path)` reads the head from a file and the REST server resumes from `AUDIT_DIR/audit.jsonl`
 
 ### Fixed
+- Hot-reload no longer appends duplicates: `PolicyEngine.loadContract()` replaces a contract with the same name and version, `ContractWatcher` deactivates the version a file provided before when the file changes or is deleted (and reloads the other file when two provide the same contract), and `BundleWatcher` replaces the attached instance's contracts with each new bundle via the new `replaceContracts()`; attaching after the first poll applies the current bundle.
+- `loadContractVersion(source, { activate: false })` no longer deactivates a version that is already active.
+- Rate-limit counters are scoped per rule; two rules on the same field no longer share one bucket.
+- A decision is evaluated, hashed and audited against one snapshot of the contract set, so a reload landing mid-evaluation cannot attribute it to the new policy.
 - `evaluate()` denies when no contract is loaded and records that deny; the REST server answers 503 on `/v1/evaluate`, `/v1/enforce`, `/v1/evaluate/batch` and `/v1/mcp/authorize` until a contract is loaded.
 - A rule whose evaluation throws (invalid regex, missing or misbehaving `StateStore`) blocks instead of rejecting `evaluate()`; the reason is in `RuleEvaluation.error` and in the audit entry's `rule_results`. `MCPRouter` likewise denies on a permission whose condition throws instead of skipping to the next rule.
 - Signed bundles are schema-validated after signature verification; `verifyBundle()` and `unpackBundle()` throw `ContractParseError` on a malformed contract, and an envelope with another `payloadType` is not a valid bundle.
@@ -42,6 +46,7 @@ Scaffolding that existed so a README bullet could be true, but did not do what t
 - `docs/compliance.md`
 
 ### Changed
+- Policy hooks (`onDecision`, `onBlock`, `onWarn`, `onLog`) receive the contracts the decision was evaluated against as a second argument.
 - README and docs now state that the library computes no detection signals (`output.contains_pii`, `toxicity_score`, `injection_score` are read, never produced) and that the host applies obligations; `examples/openai-wrapper.ts` is the reference
 - README comparison table corrected for OPA (arbitrary JSON output, signed bundles), Permit.io (PDP and OPAL are open source) and Guardrails AI (fix/filter/reask outcomes, anonymizing fix actions); RFC 3161 and compliance-report rows dropped
 - Removed claims of regulatory admissibility, "no other policy engine does this", and "6 compliance frameworks"

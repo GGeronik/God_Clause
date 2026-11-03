@@ -214,6 +214,44 @@ describe("BundleWatcher", () => {
     expect(loaded[0].metadata.name).toBe("watched-contract");
   });
 
+  it("a new bundle replaces the attached instance's contracts", async () => {
+    const { GodClause } = await import("../src/governance");
+    const filePath = writeSignedBundle([makeContract("X")]);
+    const gov = new GodClause();
+    const watcher = new BundleWatcher({ source: filePath, publicKey, pollIntervalMs: 30 });
+    watcher.attach(gov);
+
+    watcher.start();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(gov.getContracts().map((c) => `${c.metadata.name}@${c.metadata.version}`)).toEqual(["X@1.0.0"]);
+
+    const x2 = { ...makeContract("X"), metadata: { ...makeContract("X").metadata, version: "2.0.0" } };
+    writeFileSync(
+      filePath,
+      JSON.stringify(signBundle(packBundle([x2, makeContract("Y")]), { privateKey, keyId: "k" })),
+    );
+    await new Promise((r) => setTimeout(r, 120));
+    watcher.stop();
+
+    expect(gov.getContracts().map((c) => `${c.metadata.name}@${c.metadata.version}`)).toEqual(["X@2.0.0", "Y@1.0.0"]);
+    expect(gov.engine.getContracts()).toHaveLength(2);
+  });
+
+  it("attaching after the first poll still applies the current bundle", async () => {
+    const { GodClause } = await import("../src/governance");
+    const filePath = writeSignedBundle([makeContract("late")]);
+    const watcher = new BundleWatcher({ source: filePath, publicKey, pollIntervalMs: 30 });
+
+    watcher.start();
+    await new Promise((r) => setTimeout(r, 50));
+    const gov = new GodClause();
+    watcher.attach(gov);
+    await new Promise((r) => setTimeout(r, 80));
+    watcher.stop();
+
+    expect(gov.getContracts().map((c) => c.metadata.name)).toEqual(["late"]);
+  });
+
   it("skips reload when bundle_id is unchanged", async () => {
     const contracts = [makeContract("same-bundle")];
     const filePath = writeSignedBundle(contracts);

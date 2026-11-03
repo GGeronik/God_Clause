@@ -13,7 +13,8 @@ import {
 import { evaluateRule } from "./evaluator";
 import type { StateStore } from "./state-store";
 
-export type PolicyHook = (decision: PolicyDecision) => void | Promise<void>;
+/** Receives the decision and the contracts it was evaluated against (a snapshot; later reloads do not change it). */
+export type PolicyHook = (decision: PolicyDecision, contracts: ReadonlyArray<TrustContract>) => void | Promise<void>;
 
 export interface PolicyEngineOptions {
   /** Called after every decision. Use for logging, metrics, audit sinks. */
@@ -42,9 +43,12 @@ export class PolicyEngine {
     this.stateStore = opts.stateStore;
   }
 
-  /** Register a trust contract with the engine. */
+  /** Register a trust contract with the engine; the same name and version replaces the earlier copy. */
   loadContract(contract: TrustContract): void {
-    this.contracts.push(contract);
+    const { name, version } = contract.metadata;
+    const i = this.contracts.findIndex((c) => c.metadata.name === name && c.metadata.version === version);
+    if (i === -1) this.contracts.push(contract);
+    else this.contracts[i] = contract;
   }
 
   /** Remove all loaded contracts. */
@@ -68,8 +72,10 @@ export class PolicyEngine {
    */
   async evaluate(ctx: PolicyContext, opts?: EvaluateOptions): Promise<PolicyDecision> {
     const allEvaluations: RuleEvaluation[] = [];
+    // One snapshot for the whole evaluation, so a reload landing mid-way cannot mix two policy sets.
+    const contracts = this.contracts;
 
-    if (this.contracts.length === 0) {
+    if (contracts.length === 0) {
       allEvaluations.push({
         rule_id: "NO-CONTRACT",
         rule_description: "No trust contract is loaded",
@@ -80,7 +86,7 @@ export class PolicyEngine {
       });
     }
 
-    for (const contract of this.contracts) {
+    for (const contract of contracts) {
       let rules = contract.rules;
 
       // Tag filtering
@@ -143,9 +149,9 @@ export class PolicyEngine {
 
     // Compute governance context
     let governance_context: GovernanceContext | undefined;
-    if (this.contracts.length > 0) {
-      const contract = this.contracts[0];
-      const allRules = this.contracts.flatMap((c) => c.rules);
+    if (contracts.length > 0) {
+      const contract = contracts[0];
+      const allRules = contracts.flatMap((c) => c.rules);
       const rulesPayload = JSON.stringify(allRules);
       const policy_sha256 = createHash("sha256").update(rulesPayload).digest("hex");
       governance_context = {
@@ -170,10 +176,10 @@ export class PolicyEngine {
     };
 
     // Fire hooks
-    if (this.hooks.onDecision) await this.hooks.onDecision(decision);
-    if (blocks.length > 0 && this.hooks.onBlock) await this.hooks.onBlock(decision);
-    if (warnings.length > 0 && this.hooks.onWarn) await this.hooks.onWarn(decision);
-    if (logs.length > 0 && this.hooks.onLog) await this.hooks.onLog(decision);
+    if (this.hooks.onDecision) await this.hooks.onDecision(decision, contracts);
+    if (blocks.length > 0 && this.hooks.onBlock) await this.hooks.onBlock(decision, contracts);
+    if (warnings.length > 0 && this.hooks.onWarn) await this.hooks.onWarn(decision, contracts);
+    if (logs.length > 0 && this.hooks.onLog) await this.hooks.onLog(decision, contracts);
 
     return decision;
   }
