@@ -1,154 +1,118 @@
 /**
  * God Clause — MCP Agent Governance Demo
  *
- * Shows how to intercept and govern autonomous agent tool calls:
+ * Shows how to govern autonomous agent tool calls:
  * 1. Load the MCP tool abuse prevention contract
- * 2. Create an MCPRouter from the contract's mcp_permissions
- * 3. Simulate an LLM agent attempting various tool calls
- * 4. MCPRouter blocks destructive ops, requires approval for writes, rate-limits searches
- * 5. Every decision is logged to the tamper-evident audit trail
+ * 2. Evaluate each tool call with action "mcp_call" and metadata.mcp_tool set to the tool name
+ * 3. The contract's mcp_permissions block destructive ops, require approval for writes, rate-limit searches
+ * 4. Every decision lands in the tamper-evident audit chain like any other decision
  *
  * This is the zero-trust pattern for agentic AI:
  * Just because an LLM can see a tool doesn't mean it should call it.
  *
- * Run: npx ts-node examples/mcp-agent-demo.ts
+ * Run: npx tsx examples/mcp-agent-demo.ts
  */
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { GodClause, MCPRouter, MemoryStateStore } from "../src";
-import type { MCPToolCall, MCPAuthResult, PolicyContext } from "../src";
+import { GodClause } from "../src";
+import type { PolicyDecision } from "../src";
+
+type ToolCall = { tool_name: string; arguments: Record<string, unknown> };
 
 // ─── Formatting helpers ─────────────────────────────────────────────
 
-function resultLabel(result: MCPAuthResult): string {
-  if (!result.allowed) return "\x1b[31m\u274C BLOCKED\x1b[0m";
-  if (result.require_human_approval) return "\x1b[33m\u270B HUMAN APPROVAL REQUIRED\x1b[0m";
-  return "\x1b[32m\u2705 ALLOWED\x1b[0m";
+function label(d: PolicyDecision): string {
+  if (!d.allowed) return "\x1b[31m❌ BLOCKED\x1b[0m";
+  if (d.outcome === "modify") return "\x1b[33m✋ HUMAN APPROVAL REQUIRED\x1b[0m";
+  return "\x1b[32m✅ ALLOWED\x1b[0m";
 }
 
-function printResult(call: MCPToolCall, result: MCPAuthResult): void {
-  const reason = result.denial_reason
-    ? result.denial_reason
-    : result.require_human_approval
-      ? "Permission requires human approval before execution"
-      : "Permitted by matching rule";
+function reason(d: PolicyDecision): string {
+  if (!d.allowed) return d.blocks.map((b) => b.rule_description).join("; ");
+  if (d.outcome === "modify") return d.obligations.map((o) => `${o.type} (${o.source_rule_id})`).join("; ");
+  return "Permitted by matching permission";
+}
 
-  console.log(`\u250C\u2500 Tool: ${call.tool_name}`);
-  console.log(`\u2502  Args: ${JSON.stringify(call.arguments)}`);
-  console.log(`\u2502  Result: ${resultLabel(result)}`);
-  console.log(`\u2502  Reason: ${reason}`);
-  console.log(`\u2502  Audit: ${result.audit_level}`);
-  console.log(`\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+function banner(title: string): string {
+  const line = "═".repeat(44);
+  return `${line}\n  ${title}\n${line}\n`;
 }
 
 // ─── Main ───────────────────────────────────────────────────────────
 
 async function main() {
-  // 1. Load the MCP tool abuse prevention contract from file
+  // 1. Load the contract
   const gov = new GodClause();
-  const yaml = readFileSync(
-    join(__dirname, "threats/mcp-tool-abuse.contract.yaml"),
-    "utf-8",
-  );
-  const contract = gov.loadContractYAML(yaml);
+  const contract = gov.loadContractYAML(readFileSync(join(__dirname, "threats/mcp-tool-abuse.contract.yaml"), "utf-8"));
   console.log(`Loaded contract: ${contract.metadata.name} v${contract.metadata.version}`);
   console.log(`MCP permissions: ${contract.mcp_permissions?.length ?? 0} rules\n`);
 
-  // 2. Create an MCPRouter from the contract's mcp_permissions
-  const stateStore = new MemoryStateStore();
-  const router = new MCPRouter(contract.mcp_permissions ?? [], stateStore);
+  // 2. Every tool call is an ordinary evaluation; the engine applies mcp_permissions and audits it
+  const caller = { user_id: "agent-llm-1", session_id: "agent-session-001", roles: ["agent"] };
+  const authorize = (call: ToolCall) =>
+    gov.evaluate({ action: "mcp_call", input: call.arguments, caller, metadata: { mcp_tool: call.tool_name } });
 
-  // 3. Define simulated agent tool calls
-  const sessionId = "agent-session-001";
-
-  const agentCalls: MCPToolCall[] = [
-    { tool_name: "database.drop_table", arguments: { table: "users" }, session_id: sessionId },
-    { tool_name: "database.query", arguments: { sql: "SELECT * FROM users LIMIT 10" }, session_id: sessionId },
-    { tool_name: "file_write.config", arguments: { path: "/app/config.yaml", content: "..." }, session_id: sessionId },
-    { tool_name: "web_search", arguments: { query: "latest security advisories" }, session_id: sessionId },
-    { tool_name: "shell.exec", arguments: { cmd: "rm -rf /tmp/*" }, session_id: sessionId },
-    { tool_name: "api.slack.post_message", arguments: { channel: "#general", text: "Hello" }, session_id: sessionId },
-    { tool_name: "unknown.dangerous.tool", arguments: {}, session_id: sessionId },
+  // 3. Simulated agent tool calls
+  const agentCalls: ToolCall[] = [
+    { tool_name: "database.drop_table", arguments: { table: "users" } },
+    { tool_name: "database.query", arguments: { sql: "SELECT * FROM users LIMIT 10" } },
+    { tool_name: "file_write.config", arguments: { path: "/app/config.yaml", content: "..." } },
+    { tool_name: "web_search", arguments: { query: "latest security advisories" } },
+    { tool_name: "shell.exec", arguments: { cmd: "rm -rf /tmp/*" } },
+    { tool_name: "api.slack.post_message", arguments: { channel: "#general", text: "Hello" } },
+    { tool_name: "unknown.dangerous.tool", arguments: {} },
   ];
 
-  // 4. Shared policy context for authorization
-  const ctx: PolicyContext = {
-    action: "tool_call" as const,
-    input: {},
-    caller: {
-      user_id: "agent-llm-1",
-      session_id: sessionId,
-      roles: ["agent"],
-    },
-  };
-
-  // 5. Evaluate each tool call
-  console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-  console.log("  SIMULATED AGENT TOOL CALLS");
-  console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n");
-
+  console.log(banner("SIMULATED AGENT TOOL CALLS"));
   let allowed = 0;
   let blocked = 0;
   let needsApproval = 0;
 
   for (const call of agentCalls) {
-    const result = await router.authorize(call, ctx);
-    printResult(call, result);
-
-    if (!result.allowed) blocked++;
-    else if (result.require_human_approval) { needsApproval++; allowed++; }
-    else allowed++;
+    const d = await authorize(call);
+    console.log(`┌─ Tool: ${call.tool_name}`);
+    console.log(`│  Args: ${JSON.stringify(call.arguments)}`);
+    console.log(`│  Result: ${label(d)}`);
+    console.log(`│  Reason: ${reason(d)}`);
+    console.log(`│  Decision: ${d.decision_id}`);
+    console.log("└" + "─".repeat(35));
+    if (!d.allowed) blocked++;
+    else {
+      allowed++;
+      if (d.outcome === "modify") needsApproval++;
+    }
   }
 
-  // 6. Demonstrate rate limiting with web_search
-  console.log("\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-  console.log("  RATE LIMIT DEMO: web_search (limit 20/session)");
-  console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n");
-
-  // We already called web_search once above, so we need 19 more to hit the limit,
-  // then call #21 should be blocked.
-  const searchCall: MCPToolCall = {
-    tool_name: "web_search",
-    arguments: { query: "search query" },
-    session_id: sessionId,
-  };
-
+  // 4. Rate limiting: web_search allows 20 calls per session; one was used above
+  console.log("\n" + banner("RATE LIMIT DEMO: web_search (limit 20/session)"));
+  const search: ToolCall = { tool_name: "web_search", arguments: { query: "search query" } };
   let rateLimitHit = false;
   for (let i = 2; i <= 21; i++) {
-    const result = await router.authorize(searchCall, ctx);
-    if (!result.allowed) {
-      console.log(`  Call #${i}: ${resultLabel(result)}`);
-      console.log(`  Reason: ${result.denial_reason}\n`);
+    const d = await authorize(search);
+    if (!d.allowed) {
+      console.log(`  Call #${i}: ${label(d)}`);
+      console.log(`  Reason: ${reason(d)}\n`);
       rateLimitHit = true;
       blocked++;
       break;
     }
-    if (i <= 3 || i === 20) {
-      console.log(`  Call #${i}: ${resultLabel(result)}`);
-    } else if (i === 4) {
-      console.log("  ... (calls 4\u201319 allowed) ...");
-    }
+    if (i <= 3 || i === 20) console.log(`  Call #${i}: ${label(d)}`);
+    else if (i === 4) console.log("  ... (calls 4–19 allowed) ...");
   }
+  if (!rateLimitHit) console.log("  Rate limit was not reached (unexpected).\n");
 
-  if (!rateLimitHit) {
-    console.log("  Rate limit was not reached (unexpected).\n");
-  }
+  // 5. Summary and audit trail
+  console.log(banner("SUMMARY"));
+  console.log(`  ✅ Allowed:              ${allowed}`);
+  console.log(`  ❌ Blocked:              ${blocked}`);
+  console.log(`  ✋ Need human approval:  ${needsApproval}`);
 
-  // 7. Print summary
-  console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-  console.log("  SUMMARY");
-  console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n");
-  console.log(`  \u2705 Allowed:              ${allowed}`);
-  console.log(`  \u274C Blocked:              ${blocked}`);
-  console.log(`  \u270B Need human approval:  ${needsApproval}`);
-
-  // 8. Show audit trail from governance evaluations
-  const auditEntries = gov.getAuditEntries();
+  const entries = gov.getAuditEntries();
   const { valid } = gov.verifyAuditChain();
-  console.log(`\n  Audit trail entries:   ${auditEntries.length}`);
+  console.log(`\n  Audit trail entries:   ${entries.length}`);
   console.log(`  Audit chain valid:    ${valid}`);
-  console.log("\nDone. Every tool call was governed. No unaudited actions.");
+  console.log("\nDone. Every tool call was governed and audited.");
 }
 
 main().catch(console.error);

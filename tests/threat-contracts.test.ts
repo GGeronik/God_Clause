@@ -138,6 +138,11 @@ describe("Threat contracts", () => {
 
     gov.loadContractYAML(load("pii-redaction"));
     expect((await gov.evaluate(ctx({ output: { contains_pii: false } }))).outcome).toBe("permit");
+
+    const noPermissions = new GodClause();
+    noPermissions.loadContractYAML(load("pii-redaction"));
+    const unguarded = await noPermissions.evaluate(ctx({ action: "mcp_call", metadata: { mcp_tool: "shell.exec" } }));
+    expect(unguarded.blocks.map((b) => b.rule_id)).toEqual(["MCP-PERMISSIONS"]);
   });
 
   it("base-safety template: optional token_count and confidence only apply when present", async () => {

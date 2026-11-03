@@ -112,8 +112,14 @@ describe("REST server hardening", () => {
     const third = await call("s1");
     expect(third.status).toBe(403);
     expect(third.data.denial_reason).toContain("Rate limit");
+    expect(third.data.decision_id).toBeDefined();
     expect((await call("s2")).status).toBe(200);
     expect((await call({ a: 1 })).status).toBe(400);
+
+    // Every authorization went through evaluate(), so it is in the audit chain.
+    const audited = server.gov.getAuditEntries().filter((e) => e.action === "mcp_call");
+    expect(audited.length).toBe(4);
+    expect(audited.filter((e) => !e.allowed).map((e) => e.blocks)).toEqual([["MCP-PERMISSIONS"]]);
   });
 
   it("validates query strings and options instead of crashing", async () => {

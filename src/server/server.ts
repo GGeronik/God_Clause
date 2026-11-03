@@ -572,7 +572,6 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       // ─── MCP Authorize ──────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/mcp/authorize")) {
         if (noContracts(res)) return;
-        const { MCPRouter } = await import("../engine/mcp-router");
         const body = await readJson(req);
         if (!body || typeof body.tool_name !== "string") {
           throw httpError(400, "invalid_request", "tool_name must be a string");
@@ -580,21 +579,27 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
         if (body.session_id !== undefined && typeof body.session_id !== "string") {
           throw httpError(400, "invalid_request", "session_id must be a string");
         }
+        const caller = body.caller ?? { user_id: "unknown", session_id: body.session_id ?? "unknown", roles: [] };
+        if (body.session_id !== undefined && caller && typeof caller === "object") caller.session_id = body.session_id;
+        const metadata = body.metadata && typeof body.metadata === "object" ? body.metadata : {};
 
-        // Collect MCP permissions from all active contracts
-        const permissions = gov.getContracts().flatMap((c) => c.mcp_permissions ?? []);
-        const router = new MCPRouter(permissions, stateStore);
-
-        const result = await router.authorize(
-          { tool_name: body.tool_name, arguments: body.arguments ?? {}, session_id: body.session_id ?? "unknown" },
-          {
+        // Evaluated like any decision, so the contracts' mcp_permissions apply and the call is audited.
+        const decision = await gov.evaluate(
+          contextFrom({
             action: "mcp_call",
             input: body.arguments ?? {},
-            caller: body.caller ?? { user_id: "unknown", session_id: body.session_id ?? "unknown", roles: [] },
-          },
+            caller,
+            metadata: { ...metadata, mcp_tool: body.tool_name },
+          }),
         );
-
-        json(res, result.allowed ? 200 : 403, result);
+        json(res, decision.allowed ? 200 : 403, {
+          allowed: decision.allowed,
+          require_human_approval: decision.obligations.some((o) => o.obligation_id === "OBL-MCP-HUMAN-APPROVAL"),
+          denial_reason: decision.allowed ? undefined : decision.blocks.map((b) => b.rule_description).join("; "),
+          decision_id: decision.decision_id,
+          obligations: decision.obligations,
+          governance_context: decision.governance_context,
+        });
         return;
       }
 
