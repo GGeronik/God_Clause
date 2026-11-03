@@ -5,10 +5,17 @@ All notable changes to God Clause are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Server auth and limits**: `API_TOKEN` / `--api-token` bearer authentication (scheme case-insensitive, constant-time compare) on every endpoint except `/v1/health` and `/v1/ready`; `MAX_BODY_BYTES` (default 1 MiB) request-body cap answered with 413; 10 s header and 30 s request timeouts
 - **Chain verification exports**: `canonicalJson`, `hashAuditEntry`, `verifyAuditEntries(entries, key?, { prevHash?, headHash? })`; `audit verify --prev-hash` and `--head`
 - **Chain resume**: `auditHeadHash` option and `AuditLog.headHash`; `FileAuditSink.lastHash(path)` reads the head from a file and the REST server resumes from `AUDIT_DIR/audit.jsonl`
 
 ### Fixed
+- REST server answers 400 for invalid JSON, a context without `action`/`caller`, non-string-array `options.includeTags`/`excludeTags`, a batch item or MCP call missing its fields, malformed URL encoding, a non-date `from`/`to` audit filter, and a non-bundle sent to `/v1/proof-bundle/verify`; 500 responses no longer carry internal error text.
+- `/v1/mcp/authorize` shares the server's state store, so `max_calls_per_session` is enforced.
+- `ProofBundleBuilder.verify()` checks each seal's range in linear time (a 160 KB bundle used to stall the server for over a minute) and fails a seal whose entries are not in the bundle.
+- Helm chart refuses to render without `contracts.configMapName` or with several replicas sharing the audit volume, and quotes inline secret values.
+- Helm chart: contracts mount at `/app/contracts`, the secret feeds `AUDIT_HMAC_SECRET` (was `HMAC_SECRET`) and optionally `API_TOKEN`, `CONTRACTS_DIR` is set; the Docker image's `CMD` is environment-driven so `AUDIT_DIR` and `CONTRACTS_DIR` take effect; CLI `serve` flags no longer shadow `PORT`, `CONTRACTS_DIR` and `LOG_LEVEL`.
+- A blank `AUDIT_HMAC_SECRET` or `API_TOKEN` environment variable is treated as unset, with a startup warning, instead of refusing to start.
 - Hot-reload no longer appends duplicates: `PolicyEngine.loadContract()` replaces a contract with the same name and version, `ContractWatcher` deactivates the version a file provided before when the file changes or is deleted (and reloads the other file when two provide the same contract), and `BundleWatcher` replaces the attached instance's contracts with each new bundle via the new `replaceContracts()`; attaching after the first poll applies the current bundle.
 - `loadContractVersion(source, { activate: false })` no longer deactivates a version that is already active.
 - Rate-limit counters are scoped per rule; two rules on the same field no longer share one bucket.

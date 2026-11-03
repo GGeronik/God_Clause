@@ -17,9 +17,10 @@ RUN mkdir -p /app/contracts /app/audit
 
 EXPOSE 3000
 
+# Every setting is taken from the environment, so a chart or compose file can override it.
 ENV PORT=3000
 ENV CONTRACTS_DIR=/app/contracts
 ENV AUDIT_DIR=/app/audit
 ENV LOG_LEVEL=info
 
-CMD ["node", "dist/cli/index.js", "serve", "--contracts", "/app/contracts", "--audit-dir", "/app/audit"]
+CMD ["node", "dist/cli/index.js", "serve"]

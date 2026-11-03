@@ -1,4 +1,5 @@
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from "http";
+import { timingSafeEqual } from "crypto";
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
 import { GodClause, GovernanceOptions } from "../governance";
@@ -11,8 +12,16 @@ export interface ServerOptions {
   contractsDir?: string;
   auditDir?: string;
   hmacSecret?: string;
-  watchContracts?: boolean;
+  /** Bearer token every request except /v1/health and /v1/ready must carry. Unset = unauthenticated (logged as a warning). */
+  apiToken?: string;
+  /** Largest accepted request body in bytes. Default 1 MiB. */
+  maxBodyBytes?: number;
   logLevel?: "debug" | "info" | "warn" | "error";
+}
+
+/** An error the request handler turns into an HTTP status instead of a 500. */
+function httpError(status: number, error: string, message: string): Error & { status: number; error: string } {
+  return Object.assign(new Error(message), { status, error });
 }
 
 export interface GodClauseServer {
@@ -33,11 +42,17 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
   const port = opts.port ?? parseInt(process.env.PORT ?? "3000", 10);
   const contractsDir = opts.contractsDir ?? process.env.CONTRACTS_DIR ?? "./contracts";
   const auditDir = opts.auditDir ?? process.env.AUDIT_DIR;
-  const hmacSecret = opts.hmacSecret ?? process.env.AUDIT_HMAC_SECRET;
+  // A blank or whitespace-only env var (`${VAR:-}` in compose files) means unset; absences are logged at start.
+  const rawSecret = opts.hmacSecret ?? process.env.AUDIT_HMAC_SECRET;
+  const hmacSecret = rawSecret?.trim() ? rawSecret : undefined;
+  const apiToken = (opts.apiToken ?? process.env.API_TOKEN)?.trim() || undefined;
+  const capSetting = opts.maxBodyBytes ?? Number(process.env.MAX_BODY_BYTES || NaN);
+  const maxBodyBytes = Number.isSafeInteger(capSetting) && capSetting > 0 ? capSetting : 1024 * 1024;
   const logLevel = opts.logLevel ?? (process.env.LOG_LEVEL as any) ?? "info";
 
+  const stateStore = new MemoryStateStore();
   const govOpts: GovernanceOptions = {
-    stateStore: new MemoryStateStore(),
+    stateStore,
     auditSecretKey: hmacSecret,
   };
 
@@ -104,10 +119,75 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
   function parseBody(req: IncomingMessage): Promise<string> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
-      req.on("data", (chunk) => chunks.push(chunk));
+      let size = 0;
+      req.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > maxBodyBytes) {
+          req.removeAllListeners("data");
+          req.removeAllListeners("end");
+          reject(httpError(413, "payload_too_large", `Request body exceeds ${maxBodyBytes} bytes`));
+          return;
+        }
+        chunks.push(chunk);
+      });
       req.on("end", () => resolve(Buffer.concat(chunks).toString()));
       req.on("error", reject);
     });
+  }
+
+  async function readJson(req: IncomingMessage): Promise<any> {
+    const text = await parseBody(req);
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw httpError(400, "invalid_json", "Request body is not valid JSON");
+    }
+  }
+
+  function contextFrom(body: any): PolicyContext {
+    if (!body || typeof body !== "object" || typeof body.action !== "string" || body.action === "") {
+      throw httpError(400, "invalid_request", "action must be a non-empty string");
+    }
+    const c = body.caller;
+    if (
+      !c ||
+      typeof c !== "object" ||
+      typeof c.user_id !== "string" ||
+      typeof c.session_id !== "string" ||
+      !Array.isArray(c.roles)
+    ) {
+      throw httpError(400, "invalid_request", "caller must have user_id, session_id and roles[]");
+    }
+    return {
+      action: body.action,
+      input: body.input ?? {},
+      output: body.output,
+      caller: c,
+      metadata: body.metadata,
+      trace: body.trace,
+    };
+  }
+
+  function optionsFrom(body: any): EvaluateOptions {
+    const given = body.options ?? {};
+    const evalOpts: EvaluateOptions = {};
+    for (const key of ["includeTags", "excludeTags"] as const) {
+      if (given[key] === undefined) continue;
+      if (!Array.isArray(given[key]) || !given[key].every((t: unknown) => typeof t === "string")) {
+        throw httpError(400, "invalid_request", `options.${key} must be an array of strings`);
+      }
+      evalOpts[key] = given[key];
+    }
+    return evalOpts;
+  }
+
+  function authorized(req: IncomingMessage): boolean {
+    if (!apiToken) return true;
+    const match = /^bearer (.*)$/i.exec(req.headers.authorization ?? "");
+    // Node decodes header bytes as latin1; re-encode so a UTF-8 token sent on the wire compares byte for byte.
+    const given = Buffer.from(match ? match[1] : "", "latin1");
+    const expected = Buffer.from(apiToken);
+    return given.length === expected.length && timingSafeEqual(given, expected);
   }
 
   function noContracts(res: ServerResponse): boolean {
@@ -134,7 +214,11 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
     const params: Record<string, string> = {};
     for (let i = 0; i < patternParts.length; i++) {
       if (patternParts[i].startsWith(":")) {
-        params[patternParts[i].slice(1)] = decodeURIComponent(urlParts[i]);
+        try {
+          params[patternParts[i].slice(1)] = decodeURIComponent(urlParts[i]);
+        } catch {
+          throw httpError(400, "invalid_request", "Malformed URL encoding");
+        }
       } else if (patternParts[i] !== urlParts[i]) {
         return null;
       }
@@ -143,15 +227,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
   }
 
   function parseQueryParams(url: string): Record<string, string> {
-    const idx = url.indexOf("?");
-    if (idx === -1) return {};
-    const params: Record<string, string> = {};
-    const search = url.slice(idx + 1);
-    for (const pair of search.split("&")) {
-      const [k, v] = pair.split("=");
-      if (k) params[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
-    }
-    return params;
+    return Object.fromEntries(new URL(url, "http://localhost").searchParams);
   }
 
   const httpServer = createHttpServer(async (req, res) => {
@@ -165,6 +241,13 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
     if (method === "OPTIONS") {
       res.writeHead(204);
       res.end();
+      return;
+    }
+
+    const probe = matchRoute(method, url, "GET", "/v1/health") || matchRoute(method, url, "GET", "/v1/ready");
+    if (!probe && !authorized(req)) {
+      res.setHeader("WWW-Authenticate", "Bearer");
+      json(res, 401, { error: "unauthorized", message: "A valid bearer token is required" });
       return;
     }
 
@@ -190,18 +273,9 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       // ─── Evaluate ───────────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/evaluate")) {
         if (noContracts(res)) return;
-        const body = JSON.parse(await parseBody(req));
-        const ctx: PolicyContext = {
-          action: body.action,
-          input: body.input ?? {},
-          output: body.output,
-          caller: body.caller,
-          metadata: body.metadata,
-          trace: body.trace,
-        };
-        const evalOpts: EvaluateOptions = {};
-        if (body.options?.includeTags) evalOpts.includeTags = body.options.includeTags;
-        if (body.options?.excludeTags) evalOpts.excludeTags = body.options.excludeTags;
+        const body = await readJson(req);
+        const ctx = contextFrom(body);
+        const evalOpts = optionsFrom(body);
 
         const start = Date.now();
         const decision = await gov.evaluate(ctx, evalOpts);
@@ -262,18 +336,9 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       // ─── Enforce ────────────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/enforce")) {
         if (noContracts(res)) return;
-        const body = JSON.parse(await parseBody(req));
-        const ctx: PolicyContext = {
-          action: body.action,
-          input: body.input ?? {},
-          output: body.output,
-          caller: body.caller,
-          metadata: body.metadata,
-          trace: body.trace,
-        };
-        const evalOpts: EvaluateOptions = {};
-        if (body.options?.includeTags) evalOpts.includeTags = body.options.includeTags;
-        if (body.options?.excludeTags) evalOpts.excludeTags = body.options.excludeTags;
+        const body = await readJson(req);
+        const ctx = contextFrom(body);
+        const evalOpts = optionsFrom(body);
 
         try {
           const decision = await gov.enforce(ctx, evalOpts);
@@ -372,16 +437,21 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       if (matchRoute(method, url, "GET", "/v1/audit")) {
         const qp = parseQueryParams(url);
         const query: AuditQuery = {};
-        if (qp.from) query.from = qp.from;
-        if (qp.to) query.to = qp.to;
+        for (const key of ["from", "to"] as const) {
+          if (!qp[key]) continue;
+          if (Number.isNaN(Date.parse(qp[key]))) throw httpError(400, "invalid_request", `${key} must be a date`);
+          query[key] = qp[key];
+        }
         if (qp.action) query.action = qp.action;
         if (qp.user_id) query.user_id = qp.user_id;
-        if (qp.allowed) query.allowed = qp.allowed === "true";
+        if (qp.allowed === "true" || qp.allowed === "false") query.allowed = qp.allowed === "true";
         if (qp.rule_id) query.rule_id = qp.rule_id;
         if (qp.tenant_id) query.tenant_id = qp.tenant_id;
         if (qp.trace_id) query.trace_id = qp.trace_id;
-        if (qp.limit) query.limit = parseInt(qp.limit, 10);
-        if (qp.offset) query.offset = parseInt(qp.offset, 10);
+        const limit = Number(qp.limit);
+        if (Number.isInteger(limit) && limit > 0) query.limit = limit;
+        const offset = Number(qp.offset);
+        if (Number.isInteger(offset) && offset > 0) query.offset = offset;
 
         const entries = gov.queryAudit(query);
         json(res, 200, { entries, total: entries.length });
@@ -476,23 +546,15 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       // ─── Batch Evaluate ─────────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/evaluate/batch")) {
         if (noContracts(res)) return;
-        const body = JSON.parse(await parseBody(req));
-        if (!Array.isArray(body.contexts)) {
-          json(res, 400, { error: "invalid_request", message: "body.contexts must be an array" });
-          return;
+        const body = await readJson(req);
+        if (!body || !Array.isArray(body.contexts)) {
+          throw httpError(400, "invalid_request", "body.contexts must be an array");
         }
+        const contexts = body.contexts.map(contextFrom);
 
         const results = [];
-        for (const item of body.contexts) {
-          const ctx: PolicyContext = {
-            action: item.action,
-            input: item.input ?? {},
-            output: item.output,
-            caller: item.caller,
-            metadata: item.metadata,
-            trace: item.trace,
-          };
-          const decision = await gov.evaluate(ctx, body.options);
+        for (const ctx of contexts) {
+          const decision = await gov.evaluate(ctx, optionsFrom(body));
           results.push({
             decision_id: decision.decision_id,
             outcome: decision.outcome,
@@ -511,11 +573,17 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       if (matchRoute(method, url, "POST", "/v1/mcp/authorize")) {
         if (noContracts(res)) return;
         const { MCPRouter } = await import("../engine/mcp-router");
-        const body = JSON.parse(await parseBody(req));
+        const body = await readJson(req);
+        if (!body || typeof body.tool_name !== "string") {
+          throw httpError(400, "invalid_request", "tool_name must be a string");
+        }
+        if (body.session_id !== undefined && typeof body.session_id !== "string") {
+          throw httpError(400, "invalid_request", "session_id must be a string");
+        }
 
         // Collect MCP permissions from all active contracts
         const permissions = gov.getContracts().flatMap((c) => c.mcp_permissions ?? []);
-        const router = new MCPRouter(permissions);
+        const router = new MCPRouter(permissions, stateStore);
 
         const result = await router.authorize(
           { tool_name: body.tool_name, arguments: body.arguments ?? {}, session_id: body.session_id ?? "unknown" },
@@ -543,7 +611,17 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       // ─── Proof Bundle Verify ──────────────────────────────
       if (matchRoute(method, url, "POST", "/v1/proof-bundle/verify")) {
         const { ProofBundleBuilder } = await import("../audit/proof-bundle");
-        const body = JSON.parse(await parseBody(req));
+        const body = await readJson(req);
+        const isRecord = (x: unknown): boolean => !!x && typeof x === "object";
+        if (
+          !body ||
+          !Array.isArray(body.audit_entries) ||
+          !body.audit_entries.every(isRecord) ||
+          !Array.isArray(body.merkle_seals) ||
+          !body.merkle_seals.every(isRecord)
+        ) {
+          throw httpError(400, "invalid_request", "body must be a proof bundle");
+        }
         const builder = new ProofBundleBuilder(gov);
         const result = await builder.verify(body, hmacSecret);
         json(res, result.valid ? 200 : 400, result);
@@ -553,10 +631,18 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       // ─── 404 ────────────────────────────────────────────
       json(res, 404, { error: "not_found", message: `${method} ${url} not found` });
     } catch (err: any) {
-      log("error", `Request error: ${err.message}`);
-      json(res, 500, { error: "internal_error", message: err.message });
+      if (typeof err?.status === "number") {
+        json(res, err.status, { error: err.error, message: err.message });
+        return;
+      }
+      log("error", `Request error: ${err?.message ?? err}`);
+      json(res, 500, { error: "internal_error", message: "Internal error; see server log" });
     }
   });
+
+  // Bound how long a client may take to send a request; stalled uploads otherwise hold their buffers for 5 minutes.
+  httpServer.headersTimeout = 10_000;
+  httpServer.requestTimeout = 30_000;
 
   // Load contracts on init
   loadContracts();
@@ -567,6 +653,12 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
       new Promise<void>((resolve) => {
         httpServer.listen(port, () => {
           log("info", `God Clause server listening on port ${port}`);
+          if (!apiToken) log("warn", "API_TOKEN is not set: every endpoint accepts unauthenticated requests");
+          if (!hmacSecret) log("warn", "AUDIT_HMAC_SECRET is not set: audit entries are hash-chained but not signed");
+          if (!auditDir) log("warn", "AUDIT_DIR is not set: audit entries are kept in memory only and lost on exit");
+          if (capSetting !== maxBodyBytes && !Number.isNaN(capSetting)) {
+            log("warn", `MAX_BODY_BYTES ${capSetting} is not a positive integer; using ${maxBodyBytes}`);
+          }
           log("info", `Contracts loaded: ${gov.getContracts().length}`);
           log("info", `Endpoints: POST /v1/evaluate, GET /v1/health, GET /v1/metrics`);
           resolve();

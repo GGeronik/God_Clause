@@ -11,7 +11,7 @@ npm install god-clause
 ```
 
 ```typescript
-import { GodClause } from "god-clause";
+import { GodClause, MemoryStateStore } from "god-clause";
 
 const gov = new GodClause({
   auditSecretKey: process.env.AUDIT_HMAC_SECRET,
@@ -38,17 +38,20 @@ npx god-clause serve --port 3000 --contracts ./contracts/
 Or via the API:
 
 ```typescript
-import { createServer } from "god-clause/server";
+import { createServer } from "god-clause";
 
 const server = createServer({
   port: 3000,
   contractsDir: "./contracts",
   auditDir: "./audit",
   hmacSecret: process.env.AUDIT_HMAC_SECRET,
+  apiToken: process.env.API_TOKEN,
 });
 
 await server.start();
 ```
+
+When `API_TOKEN` is set, every endpoint except the two probes requires `Authorization: Bearer <token>` and answers 401 otherwise; without it the server logs a warning at start and accepts unauthenticated requests. Bodies larger than `MAX_BODY_BYTES` get 413, malformed JSON or a context without `action`/`caller` gets 400.
 
 ### Endpoints
 
@@ -63,8 +66,13 @@ await server.start();
 | `GET` | `/v1/audit` | Query audit log |
 | `GET` | `/v1/audit/verify` | Verify hash chain |
 | `POST` | `/v1/audit/seal` | Create Merkle checkpoint |
-| `GET` | `/v1/health` | Liveness probe |
-| `GET` | `/v1/ready` | Readiness probe |
+| `POST` | `/v1/evaluate/batch` | Evaluate several contexts |
+| `POST` | `/v1/mcp/authorize` | Authorize an MCP tool call |
+| `GET` | `/v1/events` | Server-sent decision events |
+| `GET` | `/v1/proof-bundle` | Export a proof bundle |
+| `POST` | `/v1/proof-bundle/verify` | Verify a proof bundle |
+| `GET` | `/v1/health` | Liveness probe (no token needed) |
+| `GET` | `/v1/ready` | Readiness probe (no token needed; 503 until a contract is loaded) |
 | `GET` | `/v1/metrics` | Prometheus metrics |
 
 ### Environment Variables
@@ -73,30 +81,17 @@ await server.start();
 |---|---|---|
 | `PORT` | `3000` | Server port |
 | `CONTRACTS_DIR` | `./contracts` | Directory to load contracts from |
-| `AUDIT_DIR` | `./audit` | Directory for JSONL audit files |
-| `AUDIT_HMAC_SECRET` | — | HMAC-SHA256 signing key |
+| `AUDIT_DIR` | — | Directory for JSONL audit files; unset keeps the audit log in memory only (warned at start) |
+| `AUDIT_HMAC_SECRET` | — | HMAC-SHA256 signing key; blank means unsigned (warned at start) |
+| `API_TOKEN` | — | Bearer token clients must send; blank means unauthenticated (warned at start) |
+| `MAX_BODY_BYTES` | `1048576` | Largest accepted request body |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
-| `WATCH_CONTRACTS` | `true` | Hot-reload contracts on file change |
-| `METRICS_ENABLED` | `true` | Enable Prometheus metrics |
+
+The same settings are available as `serve` flags (`--port`, `--contracts`, `--audit-dir`, `--hmac-secret`, `--api-token`, `--log-level`); a flag overrides its environment variable.
 
 ## Docker
 
-```dockerfile
-FROM node:20-slim AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --production
-COPY . .
-RUN npm run build
-
-FROM node:20-slim
-WORKDIR /app
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./
-EXPOSE 3000
-CMD ["node", "dist/cli/index.js", "serve"]
-```
+The repository's `Dockerfile` builds the image; it reads contracts from `/app/contracts` and writes audit files to `/app/audit`, both configurable through the environment variables above.
 
 ```bash
 # Build
@@ -106,31 +101,13 @@ docker build -t god-clause .
 docker run -d \
   -p 3000:3000 \
   -v $(pwd)/contracts:/app/contracts \
+  -v $(pwd)/audit:/app/audit \
   -e AUDIT_HMAC_SECRET=your-secret-key \
+  -e API_TOKEN=your-api-token \
   god-clause
 ```
 
-### Docker Compose
-
-```yaml
-version: "3.8"
-services:
-  god-clause:
-    build: .
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./contracts:/app/contracts
-      - ./audit:/app/audit
-    environment:
-      - AUDIT_HMAC_SECRET=${AUDIT_HMAC_SECRET}
-      - LOG_LEVEL=info
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-```
+`docker-compose.yml` does the same and passes `AUDIT_HMAC_SECRET`, `API_TOKEN` and `LOG_LEVEL` through from your shell.
 
 ## Kubernetes
 
@@ -139,9 +116,11 @@ services:
 ```bash
 helm install god-clause ./charts/god-clause \
   --set image.tag=latest \
-  --set config.hmacSecret=your-secret \
-  --set contracts.configMap=my-contracts
+  --set server.existingSecret=god-clause-secrets \
+  --set contracts.configMapName=my-contracts
 ```
+
+`contracts.configMapName` is required: the server answers 503 until a contract is loaded, so a pod without one never becomes ready. `server.existingSecret` names a Secret with keys `hmac-secret` and `api-token` (the key names are `server.existingSecretKey` and `server.apiTokenSecretKey`); if the `api-token` key is missing the pod still starts, unauthenticated, and logs a warning. For a quick test `--set server.hmacSecret=... --set server.apiToken=...` puts the values in the chart instead. The ConfigMap is mounted at `/app/contracts` and audit files go to `audit.dir` (`/data/audit`), backed by a PersistentVolumeClaim when `audit.persistence.enabled` is true — which limits the chart to one replica, since several servers appending to one `audit.jsonl` would fork the hash chain.
 
 ### Deployment Manifest
 
@@ -171,6 +150,11 @@ spec:
                 secretKeyRef:
                   name: god-clause-secrets
                   key: hmac-secret
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: god-clause-secrets
+                  key: api-token
           volumeMounts:
             - name: contracts
               mountPath: /app/contracts
@@ -237,6 +221,7 @@ Your AI service calls `http://localhost:3000/v1/evaluate` before every AI operat
 ## Production Checklist
 
 - [ ] Set `AUDIT_HMAC_SECRET` to a strong random key (32+ bytes)
+- [ ] Set `API_TOKEN` and keep the server off the public network; only the two probes are unauthenticated
 - [ ] Configure persistent audit storage (file sink with mounted volume, or S3/webhook sink)
 - [ ] Enable Prometheus metrics scraping on `/v1/metrics`
 - [ ] Set up liveness and readiness probes

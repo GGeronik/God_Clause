@@ -328,19 +328,28 @@ auditCmd
 program
   .command("serve")
   .description("Start the God Clause REST API server")
-  .option("--port <port>", "Port to listen on", "3000")
-  .option("--contracts <dir>", "Directory to load contracts from", "./contracts")
-  .option("--audit-dir <dir>", "Directory for audit JSONL files")
-  .option("--hmac-secret <key>", "HMAC secret key for audit signing")
-  .option("--log-level <level>", "Log level (debug, info, warn, error)", "info")
+  .option("--port <port>", "Port to listen on (default: $PORT or 3000)")
+  .option("--contracts <dir>", "Directory to load contracts from (default: $CONTRACTS_DIR or ./contracts)")
+  .option("--audit-dir <dir>", "Directory for audit JSONL files (default: $AUDIT_DIR)")
+  .option("--hmac-secret <key>", "HMAC secret key for audit signing (default: $AUDIT_HMAC_SECRET)")
+  .option("--api-token <token>", "Bearer token clients must send (default: $API_TOKEN)")
+  .option("--log-level <level>", "Log level: debug, info, warn, error (default: $LOG_LEVEL or info)")
   .action(
-    async (opts: { port: string; contracts: string; auditDir?: string; hmacSecret?: string; logLevel: string }) => {
+    async (opts: {
+      port?: string;
+      contracts?: string;
+      auditDir?: string;
+      hmacSecret?: string;
+      apiToken?: string;
+      logLevel?: string;
+    }) => {
       const { createServer } = await import("../server/server");
       const server = createServer({
-        port: parseInt(opts.port, 10),
-        contractsDir: resolve(opts.contracts),
+        port: opts.port ? parseInt(opts.port, 10) : undefined,
+        contractsDir: opts.contracts ? resolve(opts.contracts) : undefined,
         auditDir: opts.auditDir ? resolve(opts.auditDir) : undefined,
         hmacSecret: opts.hmacSecret,
+        apiToken: opts.apiToken,
         logLevel: opts.logLevel as any,
       });
       await server.start();

@@ -116,19 +116,19 @@ export class ProofBundleBuilder {
     // 2. Verify Merkle seals
     let sealsValid = true;
     for (const seal of bundle.merkle_seals) {
-      const sealEntries = bundle.audit_entries.filter((e) => {
-        const fromIdx = bundle.audit_entries.findIndex((x) => x.entry_id === seal.from_entry_id);
-        const toIdx = bundle.audit_entries.findIndex((x) => x.entry_id === seal.to_entry_id);
-        const eIdx = bundle.audit_entries.indexOf(e);
-        return eIdx >= fromIdx && eIdx <= toIdx;
-      });
+      const fromIdx = bundle.audit_entries.findIndex((x) => x.entry_id === seal.from_entry_id);
+      const toIdx = bundle.audit_entries.findIndex((x) => x.entry_id === seal.to_entry_id);
+      const sealEntries = fromIdx === -1 || toIdx < fromIdx ? [] : bundle.audit_entries.slice(fromIdx, toIdx + 1);
 
-      if (sealEntries.length !== seal.entry_count) {
+      if (sealEntries.length === 0 || sealEntries.length !== seal.entry_count) {
         sealsValid = false;
         details.push({
           check: `merkle_seal_${seal.seal_id}`,
           passed: false,
-          detail: `Expected ${seal.entry_count} entries, found ${sealEntries.length}`,
+          detail:
+            sealEntries.length === 0
+              ? "Seal range not found in bundle"
+              : `Expected ${seal.entry_count} entries, found ${sealEntries.length}`,
         });
         continue;
       }
