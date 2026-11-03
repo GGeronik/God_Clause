@@ -21,7 +21,7 @@ export interface DSSEEnvelope {
 }
 
 export interface SigningOptions {
-  /** PEM-encoded private key (Ed25519 or ECDSA-P256) */
+  /** PEM-encoded private key: RSA or ECDSA P-256. Ed25519 is not supported (createSign). */
   privateKey: string;
   /** Key identifier for tracking which key signed */
   keyId: string;

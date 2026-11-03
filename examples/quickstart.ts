@@ -1,9 +1,9 @@
 /**
  * God Clause — Quick Start Example
  *
- * Run: npx ts-node examples/quickstart.ts
+ * Run from a clone of the repo: npx tsx examples/quickstart.ts
  *
- * This demonstrates the core value proposition in 30 lines:
+ * This demonstrates the core loop:
  * 1. Load a PII redaction policy
  * 2. Evaluate an LLM output containing PII
  * 3. Get a "modify" decision with redaction obligations

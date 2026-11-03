@@ -161,11 +161,14 @@ describe("REST API Server", () => {
     expect(data.valid).toBe(true);
   });
 
-  it("GET /v1/metrics returns prometheus format", async () => {
+  it("GET /v1/metrics returns prometheus format with quoted labels", async () => {
     const { status, data } = await request("GET", "/v1/metrics");
     expect(status).toBe(200);
-    expect(data).toContain("godclause_decisions_total");
+    // one deny from /v1/evaluate and one from /v1/enforce above
+    expect(data).toContain('godclause_decisions_total{outcome="deny"} 2');
+    expect(data).toContain('godclause_blocks_total{rule_id="S-001"} 2');
     expect(data).toContain("godclause_active_contracts");
+    expect(data).not.toMatch(/\{[^"}]+\}/);
   });
 
   it("POST /v1/evaluate/batch evaluates multiple contexts", async () => {

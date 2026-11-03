@@ -1,5 +1,5 @@
 # PII Redaction Contract
-# Drop-in protection: detects PII in AI outputs and triggers redaction obligations.
+# Rules: redact PII your detector flags in AI outputs; block when it flags an SSN or card number.
 # Covers: SSNs, email addresses, phone numbers, credit card numbers, names.
 #
 # Usage:
@@ -19,8 +19,8 @@ metadata:
   version: "1.0.0"
   author: Security Team
   description: >
-    Automatically detect and redact personally identifiable information (PII)
-    from AI-generated outputs. Uses modify obligations to transform outputs
+    Redact personally identifiable information (PII) that your detector flags
+    in AI-generated outputs. Uses modify obligations to transform outputs
     rather than blocking users.
   effective_date: "2025-01-01"
   review_date: "2025-07-01"

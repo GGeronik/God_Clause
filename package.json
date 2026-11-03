@@ -1,13 +1,14 @@
 {
   "name": "god-clause",
-  "version": "1.0.0",
-  "description": "Embeddable AI governance framework — human-readable trust contracts, runtime policy enforcement, and auditability SDK",
+  "version": "0.1.0",
+  "description": "Embeddable TypeScript policy decision point for AI apps: YAML trust contracts, permit/deny/modify decisions with obligations, hash-chained audit log. Bring your own detectors.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "god-clause": "dist/cli/index.js"
   },
   "scripts": {
+    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -32,7 +33,6 @@
     "gemini",
     "mcp",
     "model-context-protocol",
-    "pii-redaction",
     "compliance",
     "eu-ai-act",
     "zero-trust",
@@ -71,7 +71,8 @@
   "files": [
     "dist/",
     "schemas/",
-    "examples/",
+    "examples/**/*.yaml",
+    "examples/threats/README.md",
     "LICENSE",
     "README.md",
     "CHANGELOG.md"

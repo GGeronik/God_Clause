@@ -7,7 +7,7 @@ YAML trust contracts define rules. A three-valued policy engine evaluates them: 
 - Entry point: `src/governance.ts` (GodClause class)
 - All types: `src/types.ts` (single source of truth)
 - All exports: `src/index.ts` (if it's not here, it's not public)
-- Tests: `tests/{module}.test.ts`, vitest, 267 tests
+- Tests: `tests/{module}.test.ts`, vitest, 338 tests
 - Node >= 20, TypeScript strict, CommonJS, 4 deps (ajv, commander, uuid, yaml)
 
 ## Architecture

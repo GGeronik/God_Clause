@@ -360,30 +360,6 @@ export interface MCPPermission {
   audit_level?: "full" | "summary" | "none";
 }
 
-// ─── Human Override Types ───────────────────────────────────────────
-
-/** A cryptographically signed human override of an automated decision. */
-export interface HumanOverride {
-  /** Unique override identifier. */
-  override_id: string;
-  /** The decision being overridden. */
-  decision_id: string;
-  /** Override action: approve a denied decision, reject a permitted one, or escalate. */
-  action: "approve" | "reject" | "escalate";
-  /** Human-readable reason for the override. */
-  reason: string;
-  /** Identifier of the person who authorized the override. */
-  overrider_id: string;
-  /** Ed25519 signature of the override payload (hex-encoded). */
-  signature: string;
-  /** Ed25519 public key of the overrider (hex-encoded). */
-  public_key: string;
-  /** ISO 8601 timestamp of the override. */
-  timestamp: string;
-}
-
-// ─── Proof Bundle Types ─────────────────────────────────────────────
-
 /** A self-contained evidence bundle for regulatory proof and compliance audits. */
 export interface ProofBundle {
   /** Unique bundle identifier. */
@@ -398,10 +374,6 @@ export interface ProofBundle {
   chain_verification: { valid: boolean; entries_checked: number };
   /** Merkle seals covering the included entries. */
   merkle_seals: ChainSealRef[];
-  /** RFC 3161 timestamps if available. */
-  timestamps?: TimestampRef[];
-  /** Human overrides for included decisions. */
-  human_overrides?: HumanOverride[];
   /** Bundle metadata. */
   metadata: { generator: string; version: string };
 }
@@ -414,14 +386,6 @@ export interface ChainSealRef {
   entry_count: number;
   merkle_root: string;
   timestamp: string;
-}
-
-/** Timestamp reference within a proof bundle. */
-export interface TimestampRef {
-  merkle_root: string;
-  tsa_url: string;
-  timestamp: string;
-  tst_hash: string;
 }
 
 // ─── MCP Tool Call Types ────────────────────────────────────────────

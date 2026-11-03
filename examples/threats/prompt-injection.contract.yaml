@@ -1,5 +1,5 @@
 # Prompt Injection Defense Contract
-# Drop-in protection against common LLM prompt injection attacks.
+# Rules against common LLM prompt injection attacks.
 # Covers: ignore-previous, system prompt extraction, jailbreaks, role hijacking.
 #
 # Usage:

@@ -13,6 +13,7 @@ import {
 import { evaluateRule } from "./evaluator";
 import { MCPRouter } from "./mcp-router";
 import { MemoryStateStore, type StateStore } from "./state-store";
+import { canonicalJson } from "../audit/audit-log";
 
 /** Receives the decision and the contracts it was evaluated against (a snapshot; later reloads do not change it). */
 export type PolicyHook = (decision: PolicyDecision, contracts: ReadonlyArray<TrustContract>) => void | Promise<void>;
@@ -184,12 +185,10 @@ export class PolicyEngine {
     // Compute governance context
     let governance_context: GovernanceContext | undefined;
     if (contracts.length > 0) {
-      const contract = contracts[0];
-      const allRules = contracts.flatMap((c) => c.rules);
-      const rulesPayload = JSON.stringify(allRules);
-      const policy_sha256 = createHash("sha256").update(rulesPayload).digest("hex");
+      // Whole contracts, not just rules: mcp_permissions and model_bindings decide too.
+      const policy_sha256 = createHash("sha256").update(canonicalJson(contracts)).digest("hex");
       governance_context = {
-        contract_id: `${contract.metadata.name}@${contract.metadata.version}`,
+        contract_id: contracts.map((c) => `${c.metadata.name}@${c.metadata.version}`).join(","),
         policy_sha256,
       };
     }

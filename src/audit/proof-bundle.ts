@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import type { GodClause } from "../governance";
-import type { ProofBundle, ProofVerificationResult, HumanOverride, ChainSealRef } from "../types";
+import type { ProofBundle, ProofVerificationResult, ChainSealRef } from "../types";
+
+const { version } = require("../../package.json") as { version: string };
 import { computeMerkleRoot, ChainSeal } from "./seal";
 import { verifyAuditEntries } from "./audit-log";
 
@@ -32,7 +34,6 @@ export class ProofBundleBuilder {
     from?: string;
     to?: string;
     includeContracts?: boolean;
-    humanOverrides?: HumanOverride[];
     seals?: ChainSeal[];
   }): Promise<ProofBundle> {
     // 1. Collect audit entries (optionally filtered)
@@ -74,10 +75,9 @@ export class ProofBundleBuilder {
         entries_checked: entries.length,
       },
       merkle_seals: seals,
-      human_overrides: opts?.humanOverrides || [],
       metadata: {
         generator: "god-clause",
-        version: "2.0.0",
+        version,
       },
     };
 

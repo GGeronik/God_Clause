@@ -2,7 +2,9 @@
 
 All notable changes to God Clause are documented in this file.
 
-## [Unreleased]
+## [0.1.0] - 2026-11-03
+
+First published release. The 2.0.0 and 1.0.0 entries below describe the development history before anything was published; nothing earlier exists on npm.
 
 ### Added
 - **Regex flags**: a `matches` value may be `/pattern/flags` (`i`, `m`, `s`, `u`); unknown flags are rejected at load
@@ -11,6 +13,10 @@ All notable changes to God Clause are documented in this file.
 - **Chain resume**: `auditHeadHash` option and `AuditLog.headHash`; `FileAuditSink.lastHash(path)` reads the head from a file and the REST server resumes from `AUDIT_DIR/audit.jsonl`
 
 ### Fixed
+- `governance_context.policy_sha256` hashes the canonical JSON of every loaded contract; it used to hash the rules only, so a change to `mcp_permissions` or `model_bindings` that flipped a decision left the fingerprint unchanged. `contract_id` names every loaded contract, comma-separated, instead of the first.
+- `/v1/metrics` quotes label values (the output was not valid Prometheus text format) and counts decisions from `/v1/enforce`, `/v1/evaluate/batch` and `/v1/mcp/authorize`, not only `/v1/evaluate`; the duration summary keeps the last 10,000 samples instead of growing without bound.
+- Proof bundles and the OTel sink stamp the package version instead of a hardcoded `2.0.0`.
+- `npm run build` removes `dist/` first; a tarball packed from a stale working tree shipped compiled copies of the removed modules.
 - REST server answers 400 for invalid JSON, a context without `action`/`caller`, non-string-array `options.includeTags`/`excludeTags`, a batch item or MCP call missing its fields, malformed URL encoding, a non-date `from`/`to` audit filter, and a non-bundle sent to `/v1/proof-bundle/verify`; 500 responses no longer carry internal error text.
 - `/v1/mcp/authorize` shares the server's state store, so `max_calls_per_session` is enforced.
 - `ProofBundleBuilder.verify()` checks each seal's range in linear time (a 160 KB bundle used to stall the server for over a minute) and fails a seal whose entries are not in the bundle.
@@ -52,6 +58,7 @@ Scaffolding that existed so a README bullet could be true, but did not do what t
 - `dashboard/` and its CI job
 - `GET /v1/attestation/status`, `POST /v1/attestation/challenge`, `POST /v1/attestation/verify`, CLI `attest`
 - `docs/compliance.md`
+- `HumanOverride` and `TimestampRef` types, `ProofBundle.human_overrides`/`timestamps` and the `humanOverrides` build option — nothing verified them
 
 ### Changed
 - `PolicyEngine` (and so `GodClause` and `TenantScope`) uses an in-memory `StateStore` when none is given, so `rate_limit` rules work out of the box; pass a shared store for several processes.
@@ -59,6 +66,8 @@ Scaffolding that existed so a README bullet could be true, but did not do what t
 - `not_contains` fails when the field is missing or not a string/array, so category-based rules fail closed as their headers say.
 - Threat contracts: optional signals (`nsfw_score`, `estimated_cost_usd`, the per-type PII flags, the base template's `token_count` and `confidence`) are guarded with `not_exists` so their rules only apply when the field is supplied; required signals still fail closed, and every header now says which is which. `prompt-injection` patterns are case-insensitive, whitespace-tolerant regexes covering disregard/forget/"the above" and verb-anchored extraction phrasings, and a non-string prompt is blocked (`INJ-000`); `cost-control` gained the expensive-model warning its header promised; `mcp-tool-abuse` rules are scoped to `action: mcp_call` so composing it no longer denies every other request, and its audit rule marks every tool invocation; `data-leakage`, `copyright-protection` and the compliance template document every field their rules read.
 - Policy hooks (`onDecision`, `onBlock`, `onWarn`, `onLog`) receive the contracts the decision was evaluated against as a second argument.
+- The npm package ships the example contracts (YAML) and the threats README, not the example TypeScript programs, which import the repo's `src/` and run from a clone with `npx tsx`; the wrapper examples' simulated LLM response no longer contains an SSN, so the default run reaches the `redact_pii` path.
+- Docs: DSSE keys are RSA or ECDSA P-256 (Ed25519 was claimed and fails in `createSign`); Merkle seal verification recomputes the root over the segment (no O(log n) proof); the state store is an interface with only the in-memory implementation shipped; sidecar contracts load from the ConfigMap at startup; `data_governance` is declared, not enforced; threat contracts are described as rules over host-supplied signals, not protection.
 - README and docs now state that the library computes no detection signals (`output.contains_pii`, `toxicity_score`, `injection_score` are read, never produced) and that the host applies obligations; `examples/openai-wrapper.ts` is the reference
 - README comparison table corrected for OPA (arbitrary JSON output, signed bundles), Permit.io (PDP and OPAL are open source) and Guardrails AI (fix/filter/reask outcomes, anonymizing fix actions); RFC 3161 and compliance-report rows dropped
 - Removed claims of regulatory admissibility, "no other policy engine does this", and "6 compliance frameworks"
@@ -92,8 +101,8 @@ Scaffolding that existed so a README bullet could be true, but did not do what t
 ### Added
 - **Trust contracts**: YAML/JSON policy documents validated against JSON Schema (AJV)
 - **Composite conditions**: Recursive AND/OR/NOT boolean logic via `all`/`any`/`not`
-- **Policy engine**: Rule evaluation with four severity levels (block, warn, log)
-- **12 condition operators**: equals, not_equals, contains, not_contains, greater_than, less_than, in, not_in, matches, exists, not_exists
+- **Policy engine**: Rule evaluation with three severity levels (block, warn, log)
+- **11 condition operators**: equals, not_equals, contains, not_contains, greater_than, less_than, in, not_in, matches, exists, not_exists
 - **SHA-256 hash chain**: Tamper-evident audit log with linked entry hashes
 - **HMAC-SHA256 signing**: Optional secret key for audit entry authentication
 - **Merkle seal checkpoints**: Binary Merkle tree for periodic cryptographic snapshots

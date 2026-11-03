@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: God Clause API
   description: Embeddable AI Governance Framework — Policy Decision Point (PDP)
-  version: 2.0.0
+  version: 0.1.0
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -442,7 +442,9 @@ components:
       properties:
         contract_id:
           type: string
+          description: Comma-separated name@version of every contract the decision was evaluated against
         policy_sha256:
+          description: SHA-256 of the canonical JSON of those contracts
           type: string
 
     RuleRef:

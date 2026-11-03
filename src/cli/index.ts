@@ -12,7 +12,11 @@ import type { AuditEntry } from "../types";
 
 const program = new Command();
 
-program.name("god-clause").description("God Clause — Embeddable AI Governance Framework CLI").version("2.0.0");
+const { version } = require("../../package.json") as { version: string };
+program
+  .name("god-clause")
+  .description("God Clause — embeddable policy decision point for AI applications")
+  .version(version);
 
 // ─── validate ───────────────────────────────────────────────────────
 program

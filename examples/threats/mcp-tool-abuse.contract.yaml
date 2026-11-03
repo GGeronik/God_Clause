@@ -1,5 +1,5 @@
 # MCP Tool Abuse Prevention Contract
-# Drop-in protection: governs which MCP (Model Context Protocol) tools an LLM agent
+# Rules: govern which MCP (Model Context Protocol) tools an LLM agent
 # can invoke, with what frequency, and under what conditions.
 #
 # Why this matters:

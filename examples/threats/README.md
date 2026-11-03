@@ -1,6 +1,6 @@
 # Threat Contracts
 
-Pre-built trust contracts for the most common AI security threats. Each contract is copy-paste ready — load it and get instant protection.
+Pre-built trust contracts for the most common AI security threats. Each contract is ready to load once your application sets the detector fields listed in its header.
 
 ## Quick Start
 

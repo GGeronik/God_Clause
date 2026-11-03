@@ -9,11 +9,10 @@
  * 5. If modify → apply obligations (redact PII, add disclaimer)
  * 6. Return cleaned response
  *
- * Prerequisites:
- *   npm install @google/generative-ai god-clause
- *   export GEMINI_API_KEY=...
+ * The LLM call is simulated: a fixed string stands in for the SDK response, and
+ * the comments show the real SDK call.
  *
- * Run: npx ts-node examples/gemini-wrapper.ts
+ * Run from a clone of the repo: npx tsx examples/gemini-wrapper.ts
  */
 
 import { GodClause } from "../src";
@@ -55,7 +54,7 @@ async function callLLM(prompt: string): Promise<GeminiResponse> {
         content: {
           parts: [
             {
-              text: `Based on the records, John Smith's Social Security Number is 123-45-6789.
+              text: `Based on the records, John Smith's account was opened on 2019-04-02.
 His email is john.smith@acme.com and phone is (555) 867-5309.
 The account balance is $45,230.12.`,
             },

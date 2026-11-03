@@ -5,7 +5,7 @@ import { join } from "path";
 import { GodClause, GovernanceOptions } from "../governance";
 import { MemoryStateStore } from "../engine/state-store";
 import { FileAuditSink } from "../audit/file-sink";
-import type { PolicyContext, EvaluateOptions, AuditQuery } from "../types";
+import type { PolicyContext, EvaluateOptions, AuditQuery, PolicyDecision } from "../types";
 
 export interface ServerOptions {
   port?: number;
@@ -74,6 +74,17 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
     evaluation_durations: [] as number[],
     audit_entries_total: 0,
   };
+  function count(decision: PolicyDecision, startedAt: number): number {
+    metrics.decisions_total.set(decision.outcome, (metrics.decisions_total.get(decision.outcome) ?? 0) + 1);
+    for (const b of decision.blocks)
+      metrics.blocks_total.set(b.rule_id, (metrics.blocks_total.get(b.rule_id) ?? 0) + 1);
+    if (metrics.evaluation_durations.length >= 10_000) metrics.evaluation_durations.shift();
+    const ms = Date.now() - startedAt;
+    metrics.evaluation_durations.push(ms);
+    metrics.audit_entries_total++;
+    return ms;
+  }
+  const promLabel = (v: string) => v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
 
   // Load contracts from directory
   function loadContracts(): void {
@@ -279,20 +290,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
         const start = Date.now();
         const decision = await gov.evaluate(ctx, evalOpts);
-        const duration = Date.now() - start;
-
-        // Metrics
-        const key = `outcome=${decision.outcome}`;
-        metrics.decisions_total.set(key, (metrics.decisions_total.get(key) ?? 0) + 1);
-        metrics.evaluation_durations.push(duration);
-        metrics.audit_entries_total++;
-
-        if (decision.blocks.length > 0) {
-          for (const b of decision.blocks) {
-            const bKey = `rule_id=${b.rule_id}`;
-            metrics.blocks_total.set(bKey, (metrics.blocks_total.get(bKey) ?? 0) + 1);
-          }
-        }
+        const duration = count(decision, start);
 
         // SSE
         sendSSE("decision", {
@@ -340,8 +338,10 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
         const ctx = contextFrom(body);
         const evalOpts = optionsFrom(body);
 
+        const start = Date.now();
         try {
           const decision = await gov.enforce(ctx, evalOpts);
+          count(decision, start);
           json(res, 200, {
             decision_id: decision.decision_id,
             outcome: decision.outcome,
@@ -351,6 +351,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
           });
         } catch (err: any) {
           if (err.name === "PolicyViolationError") {
+            if (err.decision) count(err.decision, start);
             json(res, 403, {
               error: "policy_violation",
               message: err.message,
@@ -486,14 +487,14 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
         lines.push("# HELP godclause_decisions_total Total policy decisions by outcome");
         lines.push("# TYPE godclause_decisions_total counter");
-        for (const [labels, count] of metrics.decisions_total) {
-          lines.push(`godclause_decisions_total{${labels}} ${count}`);
+        for (const [outcome, n] of metrics.decisions_total) {
+          lines.push(`godclause_decisions_total{outcome="${promLabel(outcome)}"} ${n}`);
         }
 
         lines.push("# HELP godclause_blocks_total Total blocked decisions by rule");
         lines.push("# TYPE godclause_blocks_total counter");
-        for (const [labels, count] of metrics.blocks_total) {
-          lines.push(`godclause_blocks_total{${labels}} ${count}`);
+        for (const [ruleId, n] of metrics.blocks_total) {
+          lines.push(`godclause_blocks_total{rule_id="${promLabel(ruleId)}"} ${n}`);
         }
 
         lines.push("# HELP godclause_audit_entries_total Total audit entries recorded");
@@ -515,7 +516,9 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
           const p99 = sorted[Math.floor(sorted.length * 0.99)] / 1000;
           const sum = sorted.reduce((a, b) => a + b, 0) / 1000;
 
-          lines.push("# HELP godclause_evaluation_duration_seconds Policy evaluation duration");
+          lines.push(
+            "# HELP godclause_evaluation_duration_seconds Policy evaluation duration over the last 10000 decisions",
+          );
           lines.push("# TYPE godclause_evaluation_duration_seconds summary");
           lines.push(`godclause_evaluation_duration_seconds{quantile="0.5"} ${p50}`);
           lines.push(`godclause_evaluation_duration_seconds{quantile="0.95"} ${p95}`);
@@ -554,7 +557,9 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
 
         const results = [];
         for (const ctx of contexts) {
+          const start = Date.now();
           const decision = await gov.evaluate(ctx, optionsFrom(body));
+          count(decision, start);
           results.push({
             decision_id: decision.decision_id,
             outcome: decision.outcome,
@@ -584,6 +589,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
         const metadata = body.metadata && typeof body.metadata === "object" ? body.metadata : {};
 
         // Evaluated like any decision, so the contracts' mcp_permissions apply and the call is audited.
+        const start = Date.now();
         const decision = await gov.evaluate(
           contextFrom({
             action: "mcp_call",
@@ -592,6 +598,7 @@ export function createServer(opts: ServerOptions = {}): GodClauseServer {
             metadata: { ...metadata, mcp_tool: body.tool_name },
           }),
         );
+        count(decision, start);
         json(res, decision.allowed ? 200 : 403, {
           allowed: decision.allowed,
           require_human_approval: decision.obligations.some((o) => o.obligation_id === "OBL-MCP-HUMAN-APPROVAL"),
