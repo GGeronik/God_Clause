@@ -1,6 +1,8 @@
 import { AuditSink } from "../audit/audit-log";
 import type { AuditEntry } from "../types";
 
+const { version } = require("../../package.json") as { version: string };
+
 export interface OTelSinkOptions {
   /** OTLP/HTTP endpoint (e.g., "http://localhost:4318/v1/logs") */
   endpoint: string;
@@ -72,7 +74,7 @@ export class OTelAuditSink implements AuditSink {
           },
           scopeLogs: [
             {
-              scope: { name: "god-clause.audit", version: "2.0.0" },
+              scope: { name: "god-clause.audit", version },
               logRecords: records,
             },
           ],

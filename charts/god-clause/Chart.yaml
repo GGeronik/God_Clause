@@ -2,8 +2,8 @@ apiVersion: v2
 name: god-clause
 description: Embeddable AI policy decision point — trust contracts, runtime enforcement, hash-chained audit
 type: application
-version: 1.0.0
-appVersion: "2.0.0"
+version: 0.1.0
+appVersion: "0.1.0"
 keywords:
   - ai-governance
   - policy-enforcement

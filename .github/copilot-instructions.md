@@ -6,7 +6,7 @@ God Clause is an embeddable TypeScript policy decision point for AI applications
 ## Tech Stack
 - TypeScript strict mode, CommonJS, ES2022 target, Node >= 20
 - 4 dependencies: ajv, commander, uuid, yaml
-- Testing: vitest (267 tests across 23 files)
+- Testing: vitest (338 tests across 28 files)
 - Linting: eslint + prettier
 
 ## Key Files

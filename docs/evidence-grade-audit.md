@@ -57,7 +57,7 @@ Entries [E1, E2, E3, E4] → Hashes [H1, H2, H3, H4]
     H1    H2    H3    H4
 ```
 
-A seal stores the `merkle_root`, the entry range, and the entry count. Later, you can verify any segment by recomputing the Merkle root from current entries and comparing. O(log n) verification.
+A seal stores the `merkle_root`, the entry range, and the entry count. Later, you can verify any segment by recomputing the Merkle root from current entries and comparing.
 
 ```typescript
 const seal = gov.sealAuditChain();
@@ -77,7 +77,7 @@ const envelope = signContract(contract, {
   privateKey: signingKey,
   keyId: "policy-team-key-2025",
 });
-// envelope contains base64 payload + Ed25519/ECDSA signature
+// envelope contains base64 payload + RSA or ECDSA P-256 signature
 ```
 
 **What this proves**: WHO authored or approved each policy contract. The signature is bound to the exact YAML content — any modification invalidates it.
@@ -90,7 +90,7 @@ When asked "show that your AI system followed its policy on March 15th":
 2. **Audit hash chain** shows every decision was recorded in sequence and none was altered since
 3. **HMAC signatures** show entries weren't recomputed by someone without the key
 4. **Merkle seal** checks the integrity of a whole audit segment in one comparison
-5. **`governance_context.policy_sha256`** in each audit entry ties it to the exact policy version that produced it
+5. **`policy_sha256`** in each audit entry ties it to the exact contract set that produced it
 
 ## What It Does Not Prove
 

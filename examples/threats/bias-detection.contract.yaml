@@ -1,5 +1,5 @@
 # Bias Detection Contract
-# Drop-in protection: flag demographic bias in scoring/classification outputs.
+# Rules: flag demographic bias in scoring/classification outputs.
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("bias-detection.contract.yaml", "utf-8"));

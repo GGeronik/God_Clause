@@ -104,8 +104,15 @@ When adding example contracts:
 - Use composite conditions where they add clarity
 - Keep them under 100 lines
 
+## Releasing
+
+1. `npm version <x.y.z> --no-git-tag-version`, then add a `## [x.y.z] - YYYY-MM-DD` section at the top of `CHANGELOG.md`, and set `version`/`appVersion` in `charts/god-clause/Chart.yaml`
+2. `npm run format && npm test && npm run build && npm pack --dry-run` — check the file list is only `dist/` (every file with a source under `src/`), `schemas/`, the example YAML and threats README, the licence, README and changelog
+3. Commit, tag `v<x.y.z>`, push the tag, and create a GitHub release from it
+4. Publishing the release runs `.github/workflows/publish.yml`, which type-checks, tests, builds and runs `npm publish --provenance`; it needs the `NPM_TOKEN` repository secret
+
 ## Reporting Issues
 
 - Use GitHub Issues for bugs and feature requests
 - Include reproduction steps for bugs
-- For security vulnerabilities, email security@god-clause.dev instead of opening a public issue
+- For security vulnerabilities, open a private report at https://github.com/GGeronik/God_Clause/security/advisories/new instead of a public issue

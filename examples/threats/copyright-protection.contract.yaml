@@ -1,5 +1,5 @@
 # Copyright Protection Contract
-# Drop-in protection: block verbatim reproduction and require attribution.
+# Rules: block verbatim reproduction and require attribution.
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("copyright-protection.contract.yaml", "utf-8"));

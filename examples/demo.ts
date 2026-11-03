@@ -1,7 +1,7 @@
 /**
  * God Clause — Usage Demo
  *
- * Run: npx ts-node examples/demo.ts
+ * Run from a clone of the repo: npx tsx examples/demo.ts
  */
 import { readFileSync } from "fs";
 import { join } from "path";

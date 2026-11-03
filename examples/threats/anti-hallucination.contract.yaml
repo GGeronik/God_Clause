@@ -1,5 +1,5 @@
 # Anti-Hallucination Contract
-# Drop-in protection: require confidence scores, add disclaimers on low-confidence outputs,
+# Rules: require confidence scores, add disclaimers on low-confidence outputs,
 # flag responses without citations.
 #
 # Usage:

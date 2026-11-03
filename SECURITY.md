@@ -2,11 +2,9 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.x     | Yes                |
-| 1.x     | Security fixes only|
-| < 1.0   | No                 |
+| Version | Supported |
+| ------- | --------- |
+| 0.1.x   | Yes       |
 
 ## Reporting a Vulnerability
 
@@ -14,8 +12,8 @@ If you discover a security vulnerability in God Clause, **please do not open a p
 
 Instead, report it privately:
 
-1. **Email**: Send details to **security@god-clause.dev**
-2. **Subject**: `[SECURITY] Brief description`
+1. **Advisory**: open a private report at https://github.com/GGeronik/God_Clause/security/advisories/new
+2. **Title**: `[SECURITY] Brief description`
 3. **Include**:
    - Description of the vulnerability
    - Steps to reproduce

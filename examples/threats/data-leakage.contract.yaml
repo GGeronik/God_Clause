@@ -1,5 +1,5 @@
 # Data Leakage Prevention Contract
-# Drop-in protection: prevent internal/confidential data from appearing in AI outputs.
+# Rules: prevent internal/confidential data from appearing in AI outputs.
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("data-leakage.contract.yaml", "utf-8"));

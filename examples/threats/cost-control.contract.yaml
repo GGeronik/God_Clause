@@ -1,5 +1,5 @@
 # Cost Control Contract
-# Drop-in protection: rate limit users, enforce token caps, restrict expensive models.
+# Rules: rate limit users, enforce token caps, restrict expensive models.
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("cost-control.contract.yaml", "utf-8"));

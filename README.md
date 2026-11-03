@@ -9,6 +9,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)]()
 [![CI](https://github.com/GGeronik/God_Clause/actions/workflows/ci.yml/badge.svg)](https://github.com/GGeronik/God_Clause/actions/workflows/ci.yml)
 
+Status: 0.1.0, the first published release. The YAML contract format is stable; the TypeScript API may still change before 1.0.
+
 ---
 
 ## See It Work: A Modify Decision
@@ -55,7 +57,7 @@ const decision = await gov.evaluate({
 });
 
 console.log(decision.outcome);        // "modify"  (not blocked — modified)
-console.log(decision.obligations[0]); // { type: "redact_pii", params: { replacement: "[REDACTED]" } }
+console.log(decision.obligations[0]); // { obligation_id: "OBL-REDACT", type: "redact_pii", params: { replacement: "[REDACTED]" }, source_rule_id: "PII-001" }
 
 // Your app applies the obligation:
 // "John's SSN is 123-45-6789"  →  "John's SSN is [REDACTED]"
@@ -97,7 +99,7 @@ The audit log is tamper-evident; it is not a compliance product. God Clause reco
 
 A Trust Contract is a YAML file — but it's not "just configuration."
 
-The SHA-256 of the policy is recorded in every audit entry (`governance_context.policy_sha256`), so each decision is tied to the exact policy version that produced it. Change the contract later and the entries made under the old version still carry the old fingerprint.
+The SHA-256 of the loaded contracts is recorded in every audit entry (`policy_sha256`; the decision carries it as `governance_context.policy_sha256`, next to the `name@version` of each contract), so each decision is tied to the exact contract set that produced it. Change a contract later and the entries made under the old version still carry the old fingerprint.
 
 Add a DSSE signature to record who authored each policy version. The result is a policy document with a verifiable author and a verifiable link to every decision it governed, which is more than a config file.
 
@@ -111,9 +113,9 @@ metadata:
   effective_date: "2025-01-01"
   review_date: "2025-07-01"
   stakeholders: [VP Engineering, Legal, Ethics Board]
-data_governance:
+data_governance:                      # Declared, not enforced: lint and summarize read it, evaluate() does not
   allowed_input_classes: [public, internal]
-  allowed_output_classes: [public]     # No PII/PHI in outputs
+  allowed_output_classes: [public]
   retention_period: P90D
   cross_border_transfer: false
 rules:
@@ -186,7 +188,7 @@ A plain database log can be edited by anyone with write access and leaves no tra
 |---|---|
 | **SHA-256 hash chain** | Each entry links to the previous. Delete or modify any entry → chain breaks → tampering detected |
 | **HMAC-SHA256 signing** | Even if someone recomputes hashes, they need the secret key |
-| **Merkle seal checkpoints** | O(log n) verification over audit segments |
+| **Merkle seal checkpoints** | One root comparison per segment, recomputed over the segment's entries |
 | **DSSE contract signatures** | Cryptographic proof of who authored each policy |
 
 What it does not give you: an external clock (entry timestamps come from the host), or any proof of what your application did with the decision. Keep the HMAC key away from whoever can write to the log, or the HMAC layer proves nothing.
@@ -207,6 +209,7 @@ Pre-built contracts for common AI threats. Each reads detector signals that your
 | [`data-leakage.contract.yaml`](./examples/threats/data-leakage.contract.yaml) | Internal data in outputs, cross-border violations |
 | [`bias-detection.contract.yaml`](./examples/threats/bias-detection.contract.yaml) | Demographic bias in scoring, protected class filtering |
 | [`copyright-protection.contract.yaml`](./examples/threats/copyright-protection.contract.yaml) | Verbatim reproduction, attribution requirements |
+| [`mcp-tool-abuse.contract.yaml`](./examples/threats/mcp-tool-abuse.contract.yaml) | Destructive or unlisted MCP tool calls, per-session call caps, human approval for sensitive tools |
 
 See also: [domain-specific contracts](./examples/) for healthcare, financial services, HR, and e-commerce.
 
@@ -254,13 +257,13 @@ conditions:
 ```
 
 ### Everything Else
-- **Rate limiting** — sliding window counters with pluggable state store (memory, Redis)
+- **Rate limiting** — sliding window counters behind a pluggable `StateStore` interface (in-memory implementation included)
 - **Tag filtering** — evaluate rule subsets by tag at runtime
 - **Contract versioning** — multiple versions with activate/deactivate
 - **Multi-tenancy** — isolated contracts, engine, and audit per tenant
 - **DSSE signing** — cryptographic contract authorship via Dead Simple Signing Envelopes
 - **OpenTelemetry export** — OTLP/HTTP log mapping for Datadog/Grafana/New Relic
-- **Prometheus metrics** — `godclause_decisions_total`, `godclause_blocks_total`, evaluation duration histograms
+- **Prometheus metrics** — `godclause_decisions_total`, `godclause_blocks_total`, evaluation duration summary
 - **REST API server** — standalone PDP with 17 endpoints, SSE streaming, batch evaluation
 - **CLI tool** — `validate`, `lint`, `summarize`, `diff`, `evaluate`, `serve`, `audit verify/export`, `init`, `proof-bundle`, `verify-bundle`
 - **MCP tool authorization** — glob-matched, fail-closed routing for Model Context Protocol tool calls
@@ -290,7 +293,7 @@ const chain = new LLMChain({ llm, prompt, callbacks: [handler] });
 ### Vercel AI SDK
 ```typescript
 const wrapper = createVercelAIWrapper(gov, { caller });
-const result = await wrapper.wrapGenerate({ doGenerate: () => model.doGenerate(params) });
+const result = await wrapper.wrapGenerate({ prompt: params.prompt, doGenerate: () => model.doGenerate(params) });
 ```
 
 ### REST API (Any Language)
@@ -362,7 +365,7 @@ curl -X POST http://localhost:3000/v1/evaluate \
 | `obligations` | `Obligation[]` | What to do for modify decisions |
 | `blocks` | `RuleEvaluation[]` | Which rules blocked |
 | `warnings` | `RuleEvaluation[]` | Which rules warned |
-| `governance_context` | `GovernanceContext` | Policy SHA-256 fingerprint |
+| `governance_context` | `GovernanceContext` | Contract ids and the SHA-256 of the loaded contracts |
 
 See [full API docs](./docs/) for server endpoints, CLI commands, and configuration reference.
 
@@ -370,8 +373,8 @@ See [full API docs](./docs/) for server endpoints, CLI commands, and configurati
 
 ## Examples
 
-- **[Quick Start](./examples/quickstart.ts)** — 30-line modify decision with audit verification
-- **[OpenAI Wrapper](./examples/openai-wrapper.ts)** — Governance around OpenAI calls
+- **[Quick Start](./examples/quickstart.ts)** — Modify decision with audit verification
+- **[OpenAI Wrapper](./examples/openai-wrapper.ts)** — Governance around OpenAI calls (the examples run from a clone with `npx tsx`; the LLM call is simulated)
 - **[Claude Wrapper](./examples/anthropic-wrapper.ts)** — Governance around Anthropic Claude calls
 - **[Gemini Wrapper](./examples/gemini-wrapper.ts)** — Governance around Google Gemini calls
 - **[MCP Agent Demo](./examples/mcp-agent-demo.ts)** — MCP tool authorization with fail-closed routing

@@ -1,59 +1,89 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://god-clause.dev/schemas/trust-contract.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/GGeronik/God_Clause/schemas/trust-contract.schema.json",
   "title": "God Clause Trust Contract",
-  "description": "Schema for human-readable AI governance trust contracts with composite condition support",
   "type": "object",
-  "required": ["schema_version", "metadata", "data_governance", "rules"],
-  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "metadata",
+    "data_governance",
+    "rules"
+  ],
   "$defs": {
     "conditionExpr": {
       "oneOf": [
         {
           "type": "object",
-          "required": ["field", "operator", "value"],
+          "required": [
+            "field",
+            "operator",
+            "value"
+          ],
           "additionalProperties": false,
-          "description": "Leaf condition: compare a field value",
           "properties": {
-            "field": { "type": "string", "description": "Dot-notation path (e.g. output.confidence)" },
+            "field": {
+              "type": "string"
+            },
             "operator": {
               "type": "string",
-              "enum": ["equals", "not_equals", "contains", "not_contains", "greater_than", "less_than", "in", "not_in", "matches", "exists", "not_exists"]
+              "enum": [
+                "equals",
+                "not_equals",
+                "contains",
+                "not_contains",
+                "greater_than",
+                "less_than",
+                "in",
+                "not_in",
+                "matches",
+                "exists",
+                "not_exists",
+                "rate_limit"
+              ]
             },
-            "value": { "description": "Value to compare against" }
+            "value": {}
           }
         },
         {
           "type": "object",
-          "required": ["all"],
+          "required": [
+            "all"
+          ],
           "additionalProperties": false,
-          "description": "All child conditions must pass (AND)",
           "properties": {
             "all": {
               "type": "array",
-              "items": { "$ref": "#/$defs/conditionExpr" }
+              "items": {
+                "$ref": "#/$defs/conditionExpr"
+              }
             }
           }
         },
         {
           "type": "object",
-          "required": ["any"],
+          "required": [
+            "any"
+          ],
           "additionalProperties": false,
-          "description": "At least one child condition must pass (OR)",
           "properties": {
             "any": {
               "type": "array",
-              "items": { "$ref": "#/$defs/conditionExpr" }
+              "items": {
+                "$ref": "#/$defs/conditionExpr"
+              }
             }
           }
         },
         {
           "type": "object",
-          "required": ["not"],
+          "required": [
+            "not"
+          ],
           "additionalProperties": false,
-          "description": "The child condition must NOT pass (NOT)",
           "properties": {
-            "not": { "$ref": "#/$defs/conditionExpr" }
+            "not": {
+              "$ref": "#/$defs/conditionExpr"
+            }
           }
         }
       ]
@@ -61,79 +91,439 @@
   },
   "properties": {
     "schema_version": {
-      "type": "string",
-      "description": "Semantic version of the contract schema"
+      "type": "string"
     },
     "plain_language_summary": {
       "type": "string",
-      "description": "Human-readable plain-language summary"
+      "nullable": true
     },
     "metadata": {
       "type": "object",
-      "required": ["name", "version", "author", "description", "effective_date"],
+      "required": [
+        "name",
+        "version",
+        "author",
+        "description",
+        "effective_date"
+      ],
+      "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "version": { "type": "string" },
-        "author": { "type": "string" },
-        "description": { "type": "string" },
-        "effective_date": { "type": "string", "format": "date" },
-        "review_date": { "type": "string", "format": "date" },
-        "stakeholders": { "type": "array", "items": { "type": "string" } }
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "effective_date": {
+          "type": "string"
+        },
+        "review_date": {
+          "type": "string",
+          "nullable": true
+        },
+        "stakeholders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "nullable": true
+        }
       }
     },
     "data_governance": {
       "type": "object",
-      "required": ["allowed_input_classes", "allowed_output_classes", "retention_period", "cross_border_transfer"],
+      "required": [
+        "allowed_input_classes",
+        "allowed_output_classes",
+        "retention_period",
+        "cross_border_transfer"
+      ],
+      "additionalProperties": false,
       "properties": {
         "allowed_input_classes": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["pii", "phi", "financial", "credentials", "public", "internal", "confidential"]
+            "enum": [
+              "pii",
+              "phi",
+              "financial",
+              "credentials",
+              "public",
+              "internal",
+              "confidential"
+            ]
           }
         },
         "allowed_output_classes": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["pii", "phi", "financial", "credentials", "public", "internal", "confidential"]
+            "enum": [
+              "pii",
+              "phi",
+              "financial",
+              "credentials",
+              "public",
+              "internal",
+              "confidential"
+            ]
           }
         },
         "retention_period": {
-          "type": "string",
-          "description": "ISO 8601 duration (e.g. P30D, P1Y)"
+          "type": "string"
         },
         "cross_border_transfer": {
           "type": "boolean"
         }
       }
     },
-    "rules": {
+    "extends": {
+      "type": "string",
+      "nullable": true
+    },
+    "model_bindings": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "description", "action", "conditions", "on_violation"],
+        "required": [
+          "model_id",
+          "provider"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "description": { "type": "string" },
+          "model_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowed_actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "max_tokens": {
+            "type": "number",
+            "nullable": true
+          },
+          "temperature_max": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "nullable": true
+    },
+    "mcp_permissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "tool_pattern",
+          "allowed"
+        ],
+        "properties": {
+          "tool_pattern": {
+            "type": "string"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/conditionExpr"
+            },
+            "nullable": true
+          },
+          "require_human_approval": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "max_calls_per_session": {
+            "type": "number",
+            "nullable": true
+          },
+          "audit_level": {
+            "type": "string",
+            "enum": [
+              "full",
+              "summary",
+              "none"
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "nullable": true
+    },
+    "override_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "action",
+          "conditions",
+          "on_violation"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
           "action": {
-            "description": "AI action verb(s) this rule governs. Use '*' for all actions. Custom verbs are accepted.",
             "oneOf": [
-              { "type": "string" },
-              { "type": "array", "items": { "type": "string" } }
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             ]
           },
           "conditions": {
             "type": "array",
-            "items": { "$ref": "#/$defs/conditionExpr" }
+            "items": {
+              "$ref": "#/$defs/conditionExpr"
+            }
           },
           "on_violation": {
             "type": "string",
-            "enum": ["block", "warn", "log"]
+            "enum": [
+              "block",
+              "warn",
+              "log",
+              "modify"
+            ]
           },
           "tags": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "obligations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "obligation_id",
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "obligation_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "params": {
+                  "type": "object"
+                }
+              }
+            },
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "hazard_class": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "data_classes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              }
+            },
+            "nullable": true
+          },
+          "exceptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/conditionExpr"
+            },
+            "nullable": true
+          },
+          "required_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "nullable": true
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "action",
+          "conditions",
+          "on_violation"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "action": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/conditionExpr"
+            }
+          },
+          "on_violation": {
+            "type": "string",
+            "enum": [
+              "block",
+              "warn",
+              "log",
+              "modify"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "obligations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "obligation_id",
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "obligation_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "params": {
+                  "type": "object"
+                }
+              }
+            },
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "hazard_class": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "data_classes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              }
+            },
+            "nullable": true
+          },
+          "exceptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/conditionExpr"
+            },
+            "nullable": true
+          },
+          "required_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
           }
         }
       }

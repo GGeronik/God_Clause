@@ -141,6 +141,22 @@ rules:
     expect(d1.governance_context!.policy_sha256).not.toBe(d2.governance_context!.policy_sha256);
   });
 
+  it("policy_sha256 covers mcp_permissions and contract_id names every contract", async () => {
+    const gov1 = new GodClause();
+    gov1.loadContractYAML(compositeYAML);
+    const d1 = await gov1.evaluate(makeCtx());
+
+    const gov2 = new GodClause();
+    gov2.loadContractYAML(compositeYAML + '\nmcp_permissions:\n  - tool_pattern: "*"\n    allowed: false\n');
+    const d2 = await gov2.evaluate(makeCtx());
+    expect(d2.governance_context!.policy_sha256).not.toBe(d1.governance_context!.policy_sha256);
+
+    const id1 = d1.governance_context!.contract_id;
+    gov2.loadContractYAML(compositeYAML.replace("name: Financial AI Governance", "name: Second"));
+    const d3 = await gov2.evaluate(makeCtx());
+    expect(d3.governance_context!.contract_id).toBe(`${id1},${id1.replace("Financial AI Governance", "Second")}`);
+  });
+
   it("records policy_sha256 in audit entries", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(compositeYAML);

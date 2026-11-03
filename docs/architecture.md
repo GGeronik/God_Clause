@@ -53,8 +53,8 @@ God Clause is a three-layer AI governance chain: **Trust Contracts** define poli
 │                                                 │  Multi-sink   ││
 │  ┌─────────────────┐                          └──────────────┘   │
 │  │  DSSE Signing    │                                            │
-│  │  Contract auth   │                          Sampling: permit  │
-│  │  Ed25519/ECDSA   │                          rate configurable │
+│  │  Contract auth   │                                            │
+│  │  RSA/ECDSA P-256 │                                            │
 │  └─────────────────┘                                             │
 │                                                                  │
 │  Queries: user, action, tenant, trace, tags, date range, rule_id │
@@ -96,7 +96,7 @@ Run as a standalone server that any language can call via HTTP.
 
 ### 3. Kubernetes Sidecar
 
-Deploy alongside each service using the Helm chart. Contracts loaded from ConfigMap, auto-reloaded on change.
+Deploy alongside each service using the Helm chart. Contracts are loaded from the ConfigMap at startup; restart the pod to pick up a change.
 
 ```
 ┌─────────────────────────────────────┐
@@ -157,7 +157,7 @@ export const handler = async (event) => {
    - prev_hash linking to previous entry
    - Optional HMAC-SHA256 signature
 9. Entry appended to all configured sinks
-   - Permit decisions may be sampled (permitSampleRate)
+   - `AuditLog` can sample permit decisions (`permitSampleRate`); `GodClause` does not expose that option
    - Deny/modify decisions are ALWAYS recorded
 ```
 

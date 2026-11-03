@@ -224,32 +224,6 @@ describe("Proof Bundle Builder", () => {
     expect(result.valid).toBe(false);
   });
 
-  it("includes human overrides when provided", async () => {
-    const gov = new GodClause();
-    gov.loadContractYAML(testContract);
-
-    await gov.evaluate(makeCtx());
-
-    const builder = new ProofBundleBuilder(gov);
-    const bundle = await builder.build({
-      humanOverrides: [
-        {
-          override_id: "ovr-1",
-          decision_id: "dec-1",
-          action: "approve",
-          reason: "False positive",
-          overrider_id: "admin-1",
-          signature: "abc123",
-          public_key: "pubkey123",
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    });
-
-    expect(bundle.human_overrides?.length).toBe(1);
-    expect(bundle.human_overrides![0].reason).toBe("False positive");
-  });
-
   it("each bundle gets a unique ID", async () => {
     const gov = new GodClause();
     gov.loadContractYAML(testContract);

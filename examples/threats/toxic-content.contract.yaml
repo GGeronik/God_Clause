@@ -1,5 +1,5 @@
 # Toxic Content Filtering Contract
-# Drop-in protection: block harmful, NSFW, hate speech, and self-harm content.
+# Rules: block harmful, NSFW, hate speech, and self-harm content.
 #
 # Usage:
 #   gov.loadContractYAML(fs.readFileSync("toxic-content.contract.yaml", "utf-8"));
