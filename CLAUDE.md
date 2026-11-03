@@ -9,7 +9,7 @@ The library computes no detection signals. Fields such as `output.contains_pii`,
 ## Commands
 
 ```bash
-npm test              # 267 tests via vitest — must all pass
+npm test              # 320 tests via vitest — must all pass
 npm run build         # tsc → dist/
 npm run lint          # eslint — zero errors required (warnings OK)
 npm run format        # prettier — run before committing
@@ -152,5 +152,5 @@ Zero type errors required. Avoid `any` in source files. Tests may use `any` spar
 - **Node**: >= 20
 - **Module**: CommonJS (ES2022 target)
 - **Dependencies**: 4 (ajv, commander, uuid, yaml)
-- **Tests**: 267 across 23 test files
+- **Tests**: 320 across 25 test files
 - **GitHub**: https://github.com/GGeronik/God_Clause

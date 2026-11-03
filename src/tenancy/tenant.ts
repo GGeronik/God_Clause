@@ -49,13 +49,12 @@ export class TenantScope {
 
     this.engine = new PolicyEngine({
       ...opts,
-      async onDecision(decision) {
-        const active = self.registry.getAllActive();
-        if (active.length === 0) await self.auditLog.record(decision);
-        for (const contract of active) {
+      async onDecision(decision, contracts) {
+        if (contracts.length === 0) await self.auditLog.record(decision);
+        for (const contract of contracts) {
           await self.auditLog.record(decision, contract);
         }
-        if (userOnDecision) await userOnDecision(decision);
+        if (userOnDecision) await userOnDecision(decision, contracts);
       },
     });
 
@@ -77,6 +76,14 @@ export class TenantScope {
     validateContract(contract);
     this.registry.register(contract, { activate: true });
     this.engine.loadContract(contract);
+  }
+
+  /** Replace every loaded contract with this set; all are validated before anything is dropped. */
+  replaceContracts(contracts: TrustContract[]): void {
+    contracts.forEach(validateContract);
+    this.registry.clear();
+    this.engine.clearContracts();
+    for (const contract of contracts) this.loadContract(contract);
   }
 
   /** Evaluate a context, injecting tenant_id into the caller. */

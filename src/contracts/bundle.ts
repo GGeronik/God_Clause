@@ -130,19 +130,20 @@ export function unpackBundle(signed: SignedBundle, opts: VerifyOptions): TrustCo
 // ─── BundleWatcher ───────────────────────────────────────────────────
 
 /**
- * Polls a signed bundle source (URL or local file) and hot-reloads
- * contracts into a GodClause instance when a new bundle is detected.
+ * Polls a signed bundle source (URL or local file); each new bundle replaces
+ * the attached GodClause instance's contracts with the bundle's set.
  */
 export class BundleWatcher {
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastBundleId: string | null = null;
-  private gov: { loadContract(c: TrustContract): void } | null = null;
+  private gov: { replaceContracts(contracts: TrustContract[]): void } | null = null;
 
   constructor(private opts: BundleWatcherOptions) {}
 
-  /** Attach a GodClause instance — contracts auto-loaded on update. */
-  attach(gov: { loadContract(c: TrustContract): void }): void {
+  /** Attach a GodClause instance; each new bundle replaces its whole contract set, whatever else was loaded. */
+  attach(gov: { replaceContracts(contracts: TrustContract[]): void }): void {
     this.gov = gov;
+    this.lastBundleId = null; // so the next poll applies the current bundle to this instance
   }
 
   /** Start polling. Performs an immediate first poll. */
@@ -181,12 +182,7 @@ export class BundleWatcher {
 
       this.lastBundleId = result.bundle.bundle_id;
 
-      // Load contracts into attached governance instance
-      if (this.gov) {
-        for (const contract of result.bundle.contracts) {
-          this.gov.loadContract(contract);
-        }
-      }
+      this.gov?.replaceContracts(result.bundle.contracts);
 
       this.opts.onReload?.(result.bundle.contracts);
     } catch (err: any) {

@@ -66,6 +66,16 @@ describe("Rate Limiting", () => {
     expect(d4.blocks[0].rule_id).toBe("RL-001");
   });
 
+  it("counts per rule, so two contracts with the same limit do not double count", async () => {
+    const gov = new GodClause({ stateStore: new MemoryStateStore() });
+    gov.loadContractYAML(rateLimitContract);
+    gov.loadContractYAML(rateLimitContract.replace("name: Rate Limit Test", "name: Other").replace("RL-001", "RL-002"));
+
+    const outcomes = [];
+    for (let i = 0; i < 4; i++) outcomes.push((await gov.evaluate(makeCtx())).outcome);
+    expect(outcomes).toEqual(["permit", "permit", "permit", "deny"]);
+  });
+
   it("tracks different users independently", async () => {
     const store = new MemoryStateStore();
     const gov = new GodClause({ stateStore: store });

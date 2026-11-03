@@ -17,7 +17,7 @@ export class ContractRegistry {
     return name;
   }
 
-  /** Register a contract, optionally activating it immediately. */
+  /** Register a contract, activating it unless told not to; `activate: false` leaves an existing version's state alone. */
   register(contract: TrustContract, opts: { activate?: boolean } = {}): void {
     const name = contract.metadata.name;
     const version = contract.metadata.version;
@@ -28,7 +28,7 @@ export class ContractRegistry {
     }
     versions.set(version, {
       contract,
-      active: opts.activate !== false, // default true
+      active: opts.activate === false ? (versions.get(version)?.active ?? false) : true,
     });
   }
 

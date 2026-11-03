@@ -15,6 +15,8 @@ import { parseISO8601Duration } from "./state-store";
 /** Context passed to async evaluator functions. */
 export interface EvaluatorContext {
   stateStore?: StateStore;
+  /** Set by evaluateRule so rate-limit counters are scoped per rule. */
+  ruleId?: string;
 }
 
 /**
@@ -293,7 +295,7 @@ async function evaluateRateLimit(
 
   const value = expr.value as RateLimitValue;
   const fieldValue = resolveField(ctx, expr.field);
-  const key = `rate:${expr.field}:${String(fieldValue)}`;
+  const key = `rate:${evalCtx.ruleId ?? ""}:${expr.field}:${String(fieldValue)}`;
   const windowMs = parseISO8601Duration(value.window);
   const count = await evalCtx.stateStore.recordAndCount(key, windowMs);
   if (typeof count !== "number" || Number.isNaN(count)) {
@@ -344,7 +346,7 @@ export async function evaluateRule(
 
   // Each top-level condition in the array is implicitly AND-ed
   for (const cond of rule.conditions) {
-    const result = await evaluateConditionExprAsync(cond, ctx, evalCtx);
+    const result = await evaluateConditionExprAsync(cond, ctx, { ...evalCtx, ruleId: rule.id });
     if (!result.passed) {
       violations.push(...result.violations);
     }

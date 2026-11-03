@@ -29,6 +29,8 @@ export class ContractWatcher {
   private extensions: string[];
   private fsWatcher: FSWatcher | null = null;
   private debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Which contract each file last provided, so a changed or deleted file retires it. */
+  private provided = new Map<string, { name: string; version: string }>();
 
   onReload?: (contract: TrustContract) => void;
   onError?: (err: Error, file: string) => void;
@@ -41,7 +43,7 @@ export class ContractWatcher {
 
   /** Start watching the directory for changes. */
   start(): void {
-    if (!existsSync(this.dir)) return;
+    if (this.fsWatcher || !existsSync(this.dir)) return;
 
     this.fsWatcher = watch(this.dir, { persistent: false }, (_event, filename) => {
       if (!filename) return;
@@ -73,26 +75,58 @@ export class ContractWatcher {
     this.debounceTimers.clear();
   }
 
-  /** Reload all contract files from the directory. */
+  /** Reload all contract files from the directory and retire contracts whose files are gone. */
   reloadAll(): void {
-    if (!existsSync(this.dir)) return;
-    const files = readdirSync(this.dir).filter((f) => this.extensions.some((ext) => f.endsWith(ext)));
+    const files = existsSync(this.dir)
+      ? readdirSync(this.dir).filter((f) => this.extensions.some((ext) => f.endsWith(ext)))
+      : [];
     for (const file of files) {
       this.reloadFile(file);
     }
+    for (const file of [...this.provided.keys()]) {
+      if (!files.includes(file)) this.retire(file);
+    }
   }
 
-  private reloadFile(filename: string): void {
+  /** Reload one file; a file that is gone retires the contract it provided. */
+  reloadFile(filename: string): void {
     const path = join(this.dir, filename);
-    if (!existsSync(path)) return;
+    if (!existsSync(path)) return this.retire(filename);
 
     try {
       const source = readFileSync(path, "utf-8");
       const contract = parseContract(source);
+      const { name, version } = contract.metadata;
+      const previous = this.provided.get(filename);
       this.gov.loadContract(contract);
+      this.provided.set(filename, { name, version });
+      if (previous && (previous.name !== name || previous.version !== version)) this.release(previous);
       this.onReload?.(contract);
+    } catch (err: any) {
+      if (err?.code === "ENOENT") return this.retire(filename);
+      this.onError?.(err, filename);
+    }
+  }
+
+  private retire(filename: string): void {
+    const previous = this.provided.get(filename);
+    if (!previous) return;
+    this.provided.delete(filename);
+    try {
+      this.release(previous);
     } catch (err: any) {
       this.onError?.(err, filename);
     }
+  }
+
+  // A file stopped providing this contract. If another watched file (e.g. after a rename) still provides it,
+  // re-read that file so its content is what the engine enforces; otherwise deactivate it.
+  // shortcut: the watched directory is taken to own every name@version it provides; a contract also loaded
+  // from another source is deactivated with it, so give other sources distinct names or versions.
+  private release(c: { name: string; version: string }): void {
+    for (const [file, p] of this.provided) {
+      if (p.name === c.name && p.version === c.version) return this.reloadFile(file);
+    }
+    this.gov.deactivateContract(c.name, c.version);
   }
 }
