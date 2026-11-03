@@ -132,10 +132,11 @@ export class PolicyEngine {
       }
     }
 
-    // A tool invocation (metadata.mcp_tool) is also judged by the contracts' mcp_permissions: first match wins, fail closed.
+    // A tool invocation (metadata.mcp_tool) is also judged by the contracts' mcp_permissions: first match wins,
+    // and with no matching (or no loaded) permission the tool is denied.
     const tool = ctx.metadata?.mcp_tool;
     const permissions = contracts.flatMap((c) => c.mcp_permissions ?? []);
-    if (typeof tool === "string" && permissions.length > 0) {
+    if (typeof tool === "string") {
       const result = await new MCPRouter(permissions, this.stateStore).authorize(
         { tool_name: tool, arguments: ctx.input ?? {}, session_id: ctx.caller.session_id },
         ctx,
